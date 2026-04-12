@@ -1,0 +1,84 @@
+// AI 聊天系统 — 数据模型
+// 数据库：MySQL（与 AGENTS.md 一致；若使用 PostgreSQL，将 provider 改为 postgresql 即可）
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// 应用用户（注册 / 登录）
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique @db.VarChar(255)
+  name          String?  @db.VarChar(100)
+  /// 本地账号密码哈希（bcrypt 等）；若仅 OAuth 可为 null
+  passwordHash  String?  @db.VarChar(255)
+  image         String?  @db.VarChar(500)
+  emailVerified DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions ChatSession[]
+
+  @@map("user")
+}
+
+/// 单次对话会话（一个用户可有多条会话）
+model ChatSession {
+  id     String @id @default(cuid())
+  userId String
+
+  /// 会话标题（可由首条消息或模型自动生成）
+  title  String? @db.VarChar(500)
+  /// 使用的模型标识，如 gpt-4o、claude-3-5-sonnet
+  model  String? @db.VarChar(100)
+  status ChatSessionStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@index([userId, updatedAt])
+  @@map("chat_session")
+}
+
+/// 会话内的一条消息（用户 / 助手 / 系统）
+model ChatMessage {
+  id        String @id @default(cuid())
+  sessionId String
+
+  role    MessageRole
+  content String      @db.Text
+
+  /// 可选：本条消息估算 token 数，便于计费与统计
+  tokenCount Int?
+  /// 可选：工具调用、引用来源等扩展信息
+  metadata   Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@map("chat_message")
+}
+
+enum ChatSessionStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
