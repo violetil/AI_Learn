@@ -29,6 +29,7 @@ model User {
 
   sessions            ChatSession[]
   coursesOwned        LearningCourse[] @relation("CourseOwner")
+  courseMemberships   CourseMember[]
   assignmentsCreated  Assignment[]
   studyRecords        StudyRecord[]
 
@@ -96,6 +97,8 @@ model ChatMessage {
 model LearningCourse {
   id          String       @id @default(cuid())
   ownerId     String
+  /// 学生通过课程码加入课程（展示给学生）
+  courseCode  String       @unique @default(cuid())
   title       String
   description String?
   status      CourseStatus @default(DRAFT)
@@ -104,6 +107,7 @@ model LearningCourse {
   updatedAt DateTime @updatedAt
 
   owner        User               @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      CourseMember[]
   materials    LearningMaterial[]
   assignments  Assignment[]
   chatSessions ChatSession[]
@@ -112,6 +116,26 @@ model LearningCourse {
   @@index([ownerId])
   @@index([status])
   @@map("learning_course")
+}
+
+/// 课程成员关系（学生加入课程；教师可作为 OWNER 关系记录）
+model CourseMember {
+  id       String @id @default(cuid())
+  courseId String
+  userId   String
+  role     CourseMemberRole @default(STUDENT)
+
+  joinedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  course LearningCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("course_member")
 }
 
 /// 学习资料；可归属某门课（courseId 有值），也可作为全局资料（courseId 为空）
@@ -236,5 +260,11 @@ enum StudyRecordType {
 
 enum UserRole {
   TEACHER
+  STUDENT
+}
+
+enum CourseMemberRole {
+  OWNER
+  ASSISTANT
   STUDENT
 }
