@@ -48,9 +48,11 @@ export default async function StudentCourseDetailPage({
     },
     orderBy: { createdAt: "desc" },
     select: {
+      id: true,
       assignmentId: true,
       createdAt: true,
       note: true,
+      meta: true,
     },
   });
 
@@ -60,6 +62,75 @@ export default async function StudentCourseDetailPage({
     if (!latestByAssignment.has(r.assignmentId)) {
       latestByAssignment.set(r.assignmentId, r);
     }
+  }
+
+  function parseTeacherReview(meta: unknown): {
+    status: string | null;
+    comment: string | null;
+    reviewedAt: string | null;
+  } {
+    if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+      return { status: null, comment: null, reviewedAt: null };
+    }
+    const obj = meta as Record<string, unknown>;
+    const review =
+      obj.teacherReview &&
+      typeof obj.teacherReview === "object" &&
+      !Array.isArray(obj.teacherReview)
+        ? (obj.teacherReview as Record<string, unknown>)
+        : null;
+    if (!review) {
+      return { status: null, comment: null, reviewedAt: null };
+    }
+    return {
+      status: typeof review.status === "string" ? review.status : null,
+      comment: typeof review.comment === "string" ? review.comment : null,
+      reviewedAt: typeof review.reviewedAt === "string" ? review.reviewedAt : null,
+    };
+  }
+
+  function parseAiReview(meta: unknown): {
+    scoreSuggestion: number | null;
+    strengths: string[];
+    issues: string[];
+    suggestions: string[];
+    mode: string | null;
+  } {
+    if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
+      return {
+        scoreSuggestion: null,
+        strengths: [],
+        issues: [],
+        suggestions: [],
+        mode: null,
+      };
+    }
+    const obj = meta as Record<string, unknown>;
+    const aiReview =
+      obj.aiReview &&
+      typeof obj.aiReview === "object" &&
+      !Array.isArray(obj.aiReview)
+        ? (obj.aiReview as Record<string, unknown>)
+        : null;
+    if (!aiReview) {
+      return {
+        scoreSuggestion: null,
+        strengths: [],
+        issues: [],
+        suggestions: [],
+        mode: null,
+      };
+    }
+    const toList = (value: unknown) =>
+      Array.isArray(value) ? value.map(String).map((v) => v.trim()).filter(Boolean) : [];
+    return {
+      scoreSuggestion:
+        typeof aiReview.scoreSuggestion === "number" ? aiReview.scoreSuggestion : null,
+      strengths: toList(aiReview.strengths),
+      issues: toList(aiReview.issues),
+      suggestions: toList(aiReview.suggestions),
+      mode: typeof aiReview.mode === "string" ? aiReview.mode : null,
+    };
   }
 
   return (
@@ -132,6 +203,18 @@ export default async function StudentCourseDetailPage({
             <ul className="space-y-4 text-sm">
               {assignments.map((a) => {
                 const latest = latestByAssignment.get(a.id);
+                const teacherReview = latest
+                  ? parseTeacherReview(latest.meta)
+                  : { status: null, comment: null, reviewedAt: null };
+                const aiReview = latest
+                  ? parseAiReview(latest.meta)
+                  : {
+                      scoreSuggestion: null,
+                      strengths: [],
+                      issues: [],
+                      suggestions: [],
+                      mode: null,
+                    };
                 return (
                   <li key={a.id} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
                     <p className="font-medium text-zinc-900 dark:text-zinc-100">{a.title}</p>
@@ -150,6 +233,41 @@ export default async function StudentCourseDetailPage({
                     ) : (
                       <p className="mt-1 text-xs text-zinc-500">尚未提交</p>
                     )}
+                    {teacherReview.status ? (
+                      <div className="mt-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">
+                        <p>
+                          教师审核：{teacherReview.status === "APPROVED" ? "已通过" : "需修改"}
+                          {teacherReview.reviewedAt
+                            ? `（${new Date(teacherReview.reviewedAt).toLocaleString()}）`
+                            : ""}
+                        </p>
+                        <p className="mt-1">
+                          教师评语：{teacherReview.comment?.trim() || "（教师未填写评语）"}
+                        </p>
+                      </div>
+                    ) : latest ? (
+                      <p className="mt-2 text-xs text-zinc-500">教师尚未审核该次提交。</p>
+                    ) : null}
+                    {latest && (aiReview.scoreSuggestion !== null ||
+                    aiReview.strengths.length > 0 ||
+                    aiReview.issues.length > 0 ||
+                    aiReview.suggestions.length > 0) ? (
+                      <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">
+                        <p>
+                          AI 初评：建议分数 {aiReview.scoreSuggestion ?? "暂无"} · 来源
+                          {aiReview.mode === "live" ? "真实 AI" : "演示模板"}
+                        </p>
+                        {aiReview.strengths.length > 0 ? (
+                          <p className="mt-1">优点：{aiReview.strengths.join("；")}</p>
+                        ) : null}
+                        {aiReview.issues.length > 0 ? (
+                          <p className="mt-1">问题：{aiReview.issues.join("；")}</p>
+                        ) : null}
+                        {aiReview.suggestions.length > 0 ? (
+                          <p className="mt-1">建议：{aiReview.suggestions.join("；")}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </li>
                 );
               })}

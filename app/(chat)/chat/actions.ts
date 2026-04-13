@@ -63,7 +63,7 @@ export async function createNewChatSession(formData: FormData): Promise<void> {
     if (!canAccess) {
       redirect("/chat");
     }
-    await prisma.chatSession.create({
+    const created = await prisma.chatSession.create({
       data: {
         userId: user.id,
         title: course.title,
@@ -71,12 +71,81 @@ export async function createNewChatSession(formData: FormData): Promise<void> {
       },
     });
     revalidatePath("/chat");
-    redirect(`/chat?courseId=${encodeURIComponent(course.id)}`);
+    redirect(
+      `/chat?courseId=${encodeURIComponent(course.id)}&sessionId=${encodeURIComponent(created.id)}`,
+    );
   }
 
-  await prisma.chatSession.create({
+  const created = await prisma.chatSession.create({
     data: { userId: user.id, title: "新对话" },
   });
   revalidatePath("/chat");
-  redirect("/chat");
+  redirect(`/chat?sessionId=${encodeURIComponent(created.id)}`);
+}
+
+export async function renameChatSessionAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const sessionId = String(formData.get("sessionId") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const courseIdRaw = String(formData.get("courseId") ?? "").trim();
+  const courseId = courseIdRaw || null;
+
+  if (!sessionId || !title) {
+    return;
+  }
+
+  const session = await prisma.chatSession.findFirst({
+    where: { id: sessionId, userId: user.id, status: "ACTIVE" },
+    select: { id: true, courseId: true },
+  });
+  if (!session) {
+    return;
+  }
+
+  await prisma.chatSession.update({
+    where: { id: session.id },
+    data: { title: title.slice(0, 80) },
+  });
+  revalidatePath("/chat");
+
+  const query = new URLSearchParams();
+  if (courseId) query.set("courseId", courseId);
+  query.set("sessionId", session.id);
+  redirect(`/chat?${query.toString()}`);
+}
+
+export async function deleteChatSessionAction(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const sessionId = String(formData.get("sessionId") ?? "").trim();
+  const courseIdRaw = String(formData.get("courseId") ?? "").trim();
+  const courseId = courseIdRaw || null;
+
+  if (!sessionId) {
+    return;
+  }
+
+  const session = await prisma.chatSession.findFirst({
+    where: { id: sessionId, userId: user.id, status: "ACTIVE" },
+    select: { id: true },
+  });
+  if (!session) {
+    return;
+  }
+
+  await prisma.chatSession.delete({
+    where: { id: session.id },
+  });
+  revalidatePath("/chat");
+
+  const query = new URLSearchParams();
+  if (courseId) query.set("courseId", courseId);
+  redirect(query.toString() ? `/chat?${query.toString()}` : "/chat");
 }

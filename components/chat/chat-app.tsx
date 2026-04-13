@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useActionState } from "react";
 import { useRouter } from "next/navigation";
-import { createNewChatSession, sendChatMessage } from "@/app/(chat)/chat/actions";
+import {
+  createNewChatSession,
+  deleteChatSessionAction,
+  renameChatSessionAction,
+  sendChatMessage,
+} from "@/app/(chat)/chat/actions";
 import { initialSendMessageState } from "@/types/chat";
 
 export type ChatMessageVm = {
@@ -18,6 +23,7 @@ type Props = {
   /** 当前为「课程辅导」会话时传入，用于新对话继承课程与 UI 展示 */
   courseId?: string | null;
   courseTitle?: string | null;
+  sessions: { id: string; title: string; updatedAtLabel: string }[];
 };
 
 export function ChatApp({
@@ -26,6 +32,7 @@ export function ChatApp({
   userEmail,
   courseId = null,
   courseTitle = null,
+  sessions,
 }: Props) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -51,8 +58,8 @@ export function ChatApp({
 
   return (
     <div className="flex h-[100dvh] w-full flex-col bg-[#212121] text-zinc-100">
-      <header className="flex shrink-0 items-center justify-between border-b border-zinc-700/80 px-4 py-3">
-        <div className="min-w-0">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-700/80 px-4 py-3">
+        <div className="min-w-0 space-y-1">
           <h1 className="truncate text-sm font-semibold tracking-tight">
             {courseTitle ? "课程辅导" : "AI 助手"}
           </h1>
@@ -63,18 +70,77 @@ export function ChatApp({
             </p>
           ) : null}
         </div>
-        <form action={createNewChatSession}>
-          {courseId ? (
-            <input name="courseId" type="hidden" value={courseId} />
-          ) : null}
-          <button
-            type="submit"
-            className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700"
-          >
-            {courseId ? "本课程新对话" : "新对话"}
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <form action={createNewChatSession}>
+            {courseId ? (
+              <input name="courseId" type="hidden" value={courseId} />
+            ) : null}
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700"
+            >
+              {courseId ? "本课程新对话" : "新对话"}
+            </button>
+          </form>
+        </div>
       </header>
+
+      <div className="shrink-0 border-b border-zinc-700/80 px-4 py-3">
+        <p className="mb-2 text-xs text-zinc-400">会话历史</p>
+        <ul className="max-h-40 space-y-2 overflow-y-auto">
+          {sessions.map((s) => {
+            const active = s.id === sessionId;
+            const href = courseId
+              ? `/chat?courseId=${encodeURIComponent(courseId)}&sessionId=${encodeURIComponent(s.id)}`
+              : `/chat?sessionId=${encodeURIComponent(s.id)}`;
+            return (
+              <li
+                key={s.id}
+                className={`rounded-lg border px-3 py-2 text-xs ${
+                  active
+                    ? "border-emerald-500/60 bg-emerald-500/10"
+                    : "border-zinc-700 bg-zinc-800/60"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <a className="min-w-0 flex-1 truncate text-zinc-200 hover:underline" href={href}>
+                    {s.title}
+                  </a>
+                  <span className="shrink-0 text-[10px] text-zinc-500">{s.updatedAtLabel}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <form action={renameChatSessionAction} className="flex items-center gap-2">
+                    <input type="hidden" name="sessionId" value={s.id} />
+                    {courseId ? <input type="hidden" name="courseId" value={courseId} /> : null}
+                    <input
+                      name="title"
+                      defaultValue={s.title}
+                      maxLength={80}
+                      className="w-36 rounded border border-zinc-600 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200"
+                    />
+                    <button
+                      type="submit"
+                      className="rounded border border-zinc-600 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-700"
+                    >
+                      重命名
+                    </button>
+                  </form>
+                  <form action={deleteChatSessionAction}>
+                    <input type="hidden" name="sessionId" value={s.id} />
+                    {courseId ? <input type="hidden" name="courseId" value={courseId} /> : null}
+                    <button
+                      type="submit"
+                      className="rounded border border-red-700/60 px-2 py-1 text-[11px] text-red-300 hover:bg-red-900/30"
+                    >
+                      删除
+                    </button>
+                  </form>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">

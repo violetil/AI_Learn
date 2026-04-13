@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/auth";
 import { isCourseMember } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
-type Search = { courseId?: string };
+type Search = { courseId?: string; sessionId?: string };
 
 export default async function ChatPage({
   searchParams,
@@ -19,6 +19,7 @@ export default async function ChatPage({
 
   const sp = await searchParams;
   const queryCourseId = sp.courseId?.trim();
+  const querySessionId = sp.sessionId?.trim();
 
   let courseTitle: string | null = null;
   let boundCourseId: string | null = null;
@@ -44,14 +45,27 @@ export default async function ChatPage({
     courseTitle = course.title;
     boundCourseId = course.id;
 
-    session = await prisma.chatSession.findFirst({
-      where: {
-        userId: user.id,
-        courseId: course.id,
-        status: "ACTIVE",
-      },
-      orderBy: { updatedAt: "desc" },
-    });
+    if (querySessionId) {
+      session = await prisma.chatSession.findFirst({
+        where: {
+          id: querySessionId,
+          userId: user.id,
+          courseId: course.id,
+          status: "ACTIVE",
+        },
+      });
+    }
+
+    if (!session) {
+      session = await prisma.chatSession.findFirst({
+        where: {
+          userId: user.id,
+          courseId: course.id,
+          status: "ACTIVE",
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    }
 
     if (!session) {
       session = await prisma.chatSession.create({
@@ -63,14 +77,27 @@ export default async function ChatPage({
       });
     }
   } else {
-    session = await prisma.chatSession.findFirst({
-      where: {
-        userId: user.id,
-        status: "ACTIVE",
-        courseId: null,
-      },
-      orderBy: { updatedAt: "desc" },
-    });
+    if (querySessionId) {
+      session = await prisma.chatSession.findFirst({
+        where: {
+          id: querySessionId,
+          userId: user.id,
+          status: "ACTIVE",
+          courseId: null,
+        },
+      });
+    }
+
+    if (!session) {
+      session = await prisma.chatSession.findFirst({
+        where: {
+          userId: user.id,
+          status: "ACTIVE",
+          courseId: null,
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+    }
 
     if (!session) {
       session = await prisma.chatSession.create({
@@ -100,6 +127,17 @@ export default async function ChatPage({
     content: r.content,
   }));
 
+  const sessions = await prisma.chatSession.findMany({
+    where: {
+      userId: user.id,
+      status: "ACTIVE",
+      courseId: boundCourseId,
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true, updatedAt: true },
+    take: 30,
+  });
+
   return (
     <ChatApp
       sessionId={session.id}
@@ -107,6 +145,11 @@ export default async function ChatPage({
       userEmail={user.email}
       courseId={boundCourseId}
       courseTitle={courseTitle}
+      sessions={sessions.map((s) => ({
+        id: s.id,
+        title: s.title?.trim() || "未命名会话",
+        updatedAtLabel: s.updatedAt.toLocaleString(),
+      }))}
     />
   );
 }

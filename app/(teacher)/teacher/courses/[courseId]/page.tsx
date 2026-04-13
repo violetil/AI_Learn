@@ -189,6 +189,14 @@ export default async function TeacherCourseDetailPage({
                       截止：{a.dueAt.toLocaleString()}
                     </p>
                   ) : null}
+                  <p className="mt-2 text-xs">
+                    <Link
+                      className="underline underline-offset-4"
+                      href={`/teacher/courses/${course.id}/assignments/${a.id}`}
+                    >
+                      进入审核页
+                    </Link>
+                  </p>
                 </li>
               ))}
             </ul>
