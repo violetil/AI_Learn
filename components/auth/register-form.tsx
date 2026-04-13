@@ -46,6 +46,19 @@ export function RegisterForm() {
           />
           <span className="text-xs text-zinc-500">至少 8 位字符</span>
         </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-zinc-700 dark:text-zinc-300">
+            账号角色
+          </span>
+          <select
+            name="role"
+            defaultValue="STUDENT"
+            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none ring-zinc-400 focus:ring-2 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50"
+          >
+            <option value="STUDENT">学生</option>
+            <option value="TEACHER">教师</option>
+          </select>
+        </label>
 
         {state.error ? (
           <p

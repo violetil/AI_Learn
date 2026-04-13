@@ -8,6 +8,11 @@ import {
   setSessionCookie,
 } from "@/lib/auth";
 import type { AuthFormState } from "@/types/auth";
+import type { AppRole } from "@/lib/authz";
+
+function roleHome(role: AppRole): string {
+  return role === "TEACHER" ? "/teacher" : "/student";
+}
 
 export async function loginAction(
   _prev: AuthFormState,
@@ -28,7 +33,7 @@ export async function loginAction(
   }
 
   await setSessionCookie(result.user.id, result.user.email);
-  redirect("/");
+  redirect(roleHome(result.user.role));
 }
 
 export async function registerAction(
@@ -37,17 +42,18 @@ export async function registerAction(
 ): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const role = String(formData.get("role") ?? "STUDENT") as AppRole;
 
-  const result = await registerUser(email, password);
+  const result = await registerUser(email, password, role);
   if (!result.ok) {
     if (result.error === "EMAIL_TAKEN") {
       return { error: "该邮箱已被注册" };
     }
-    return { error: "邮箱格式无效或密码不足 8 位" };
+    return { error: "邮箱格式无效、密码不足 8 位或角色无效" };
   }
 
   await setSessionCookie(result.user.id, result.user.email);
-  redirect("/");
+  redirect(roleHome(result.user.role));
 }
 
 export async function logoutAction(): Promise<void> {

@@ -3,7 +3,14 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcrypt";
 import { prisma } from "@/lib/db";
 
-type SessionUser = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>>;
+type AppRole = "TEACHER" | "STUDENT";
+type SessionUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  role: AppRole;
+};
 
 function isPrismaUniqueViolation(e: unknown): boolean {
   return (
@@ -79,22 +86,34 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     });
     const userId = payload.sub;
     if (typeof userId !== "string" || !userId) return null;
-    return prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        role: true,
+      },
+    });
+    if (!user) return null;
+    return { ...user, role: user.role as AppRole };
   } catch {
     return null;
   }
 }
 
 export type RegisterResult =
-  | { ok: true; user: { id: string; email: string } }
+  | { ok: true; user: { id: string; email: string; role: AppRole } }
   | { ok: false; error: "EMAIL_TAKEN" | "INVALID_INPUT" };
 
 export async function registerUser(
   email: string,
   password: string,
+  role: AppRole = "STUDENT",
 ): Promise<RegisterResult> {
   const norm = normalizeEmail(email);
-  if (!isValidEmail(norm) || !isValidPassword(password)) {
+  if (!isValidEmail(norm) || !isValidPassword(password) || (role !== "TEACHER" && role !== "STUDENT")) {
     return { ok: false, error: "INVALID_INPUT" };
   }
 
@@ -102,9 +121,9 @@ export async function registerUser(
 
   try {
     const user = await prisma.user.create({
-      data: { email: norm, passwordHash },
+      data: { email: norm, passwordHash, role },
     });
-    return { ok: true, user: { id: user.id, email: user.email } };
+    return { ok: true, user: { id: user.id, email: user.email, role: user.role as AppRole } };
   } catch (e: unknown) {
     if (isPrismaUniqueViolation(e)) {
       return { ok: false, error: "EMAIL_TAKEN" };
@@ -114,7 +133,7 @@ export async function registerUser(
 }
 
 export type LoginResult =
-  | { ok: true; user: { id: string; email: string } }
+  | { ok: true; user: { id: string; email: string; role: AppRole } }
   | {
       ok: false;
       error: "USER_NOT_FOUND" | "INVALID_PASSWORD" | "INVALID_INPUT";
@@ -139,5 +158,8 @@ export async function loginUser(email: string, password: string): Promise<LoginR
     return { ok: false, error: "INVALID_PASSWORD" };
   }
 
-  return { ok: true, user: { id: user.id, email: user.email } };
+  return {
+    ok: true,
+    user: { id: user.id, email: user.email, role: user.role as AppRole },
+  };
 }

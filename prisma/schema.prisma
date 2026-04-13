@@ -1,6 +1,5 @@
-// AI 聊天系统 — 数据模型
+// 智能学习辅助系统 — 数据模型
 // 开发环境：SQLite（见 prisma.config.ts 中的 DATABASE_URL）
-// 生产环境可改为其他 provider，需与迁移策略一并调整
 
 generator client {
   provider = "prisma-client-js"
@@ -10,10 +9,15 @@ datasource db {
   provider = "sqlite"
 }
 
+// ---------------------------------------------------------------------------
+// 用户与认证（保留）
+// ---------------------------------------------------------------------------
+
 /// 应用用户（注册 / 登录）
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
+  id            String    @id @default(cuid())
+  email         String    @unique
+  role          UserRole  @default(STUDENT)
   name          String?
   /// 本地账号密码哈希（bcrypt 等）；若仅 OAuth 可为 null
   passwordHash  String?
@@ -23,15 +27,24 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions ChatSession[]
+  sessions            ChatSession[]
+  coursesOwned        LearningCourse[] @relation("CourseOwner")
+  assignmentsCreated  Assignment[]
+  studyRecords        StudyRecord[]
 
   @@map("user")
 }
 
-/// 单次对话会话（一个用户可有多条会话）
+// ---------------------------------------------------------------------------
+// AI 对话（保留 + 关联课程）
+// ---------------------------------------------------------------------------
+
+/// 单次对话会话；可选关联课程，表示「围绕某门课的 AI 辅导对话」
 model ChatSession {
-  id     String @id @default(cuid())
-  userId String
+  id       String  @id @default(cuid())
+  userId   String
+  /// 可选：关联课程后，会话上下文与推荐资料可围绕该课程组织
+  courseId String?
 
   /// 会话标题（可由首条消息或模型自动生成）
   title  String?
@@ -42,11 +55,14 @@ model ChatSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course   LearningCourse? @relation(fields: [courseId], references: [id], onDelete: SetNull)
   messages ChatMessage[]
+  studyRecords StudyRecord[]
 
   @@index([userId])
   @@index([userId, updatedAt])
+  @@index([courseId])
   @@map("chat_session")
 }
 
@@ -72,6 +88,117 @@ model ChatMessage {
   @@map("chat_message")
 }
 
+// ---------------------------------------------------------------------------
+// 学习域：课程、资料、作业、记录
+// ---------------------------------------------------------------------------
+
+/// 课程（一门课一条记录；创建者为责任教师/管理员）
+model LearningCourse {
+  id          String       @id @default(cuid())
+  ownerId     String
+  title       String
+  description String?
+  status      CourseStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        User               @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  materials    LearningMaterial[]
+  assignments  Assignment[]
+  chatSessions ChatSession[]
+  studyRecords StudyRecord[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("learning_course")
+}
+
+/// 学习资料；可归属某门课（courseId 有值），也可作为全局资料（courseId 为空）
+model LearningMaterial {
+  id          String       @id @default(cuid())
+  courseId    String?
+  title       String
+  description String?
+  kind        MaterialKind @default(LINK)
+  /// 外链或文件地址；与 content 二选一或并存（如链接 + 摘要）
+  url         String?
+  /// 正文/Markdown 等
+  content     String?
+  /// 在课程大纲中的排序，数值越小越靠前
+  position    Int          @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course   LearningCourse? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  records  StudyRecord[]
+
+  @@index([courseId, position])
+  @@map("learning_material")
+}
+
+/// 作业（从属于课程，由某用户创建/发布）
+model Assignment {
+  id          String    @id @default(cuid())
+  courseId    String
+  creatorId   String
+  title       String
+  description String?
+  dueAt       DateTime?
+  published   Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course   LearningCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator  User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  records  StudyRecord[]
+
+  @@index([courseId])
+  @@index([creatorId])
+  @@index([dueAt])
+  @@map("assignment")
+}
+
+/// 学习记录（行为轨迹：看资料、做作业、与 AI 会话等，可组合多类外键）
+model StudyRecord {
+  id            String @id @default(cuid())
+  userId        String
+  courseId      String?
+  materialId    String?
+  assignmentId  String?
+  chatSessionId String?
+
+  recordType  StudyRecordType
+  /// 本次学习时长（秒），可选
+  durationSec Int?
+  /// 进度 0–100，可选
+  progress    Int?
+  /// 成绩或评分，可选
+  score       Float?
+  note        String?
+  meta        Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course      LearningCourse?    @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  material    LearningMaterial?  @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  assignment  Assignment?        @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  chatSession ChatSession?       @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([courseId])
+  @@index([recordType])
+  @@map("study_record")
+}
+
+// ---------------------------------------------------------------------------
+// 枚举
+// ---------------------------------------------------------------------------
+
 enum ChatSessionStatus {
   ACTIVE
   ARCHIVED
@@ -81,4 +208,33 @@ enum MessageRole {
   USER
   ASSISTANT
   SYSTEM
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MaterialKind {
+  LINK
+  FILE
+  DOCUMENT
+  VIDEO
+  OTHER
+}
+
+enum StudyRecordType {
+  MATERIAL_VIEW
+  ASSIGNMENT_START
+  ASSIGNMENT_SUBMIT
+  AI_SESSION
+  COURSE_PROGRESS
+  QUIZ
+  OTHER
+}
+
+enum UserRole {
+  TEACHER
+  STUDENT
 }

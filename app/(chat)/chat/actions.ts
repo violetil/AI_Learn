@@ -2,19 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { MessageRole } from "../../../node_modules/.prisma/client/default";
-import { generateAssistantReply } from "@/lib/ai";
+import { appendUserMessageAndGetAssistantReply } from "@/lib/chat-pipeline";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { SendMessageState } from "@/types/chat";
-
-function toOpenAIRole(
-  role: MessageRole,
-): "user" | "assistant" | "system" {
-  if (role === MessageRole.USER) return "user";
-  if (role === MessageRole.ASSISTANT) return "assistant";
-  return "system";
-}
 
 export async function sendChatMessage(
   _prev: SendMessageState,
@@ -37,69 +28,50 @@ export async function sendChatMessage(
     return { error: "内容过长" };
   }
 
-  const session = await prisma.chatSession.findFirst({
-    where: { id: sessionId, userId: user.id },
-  });
-  if (!session) {
-    return { error: "无权访问该会话" };
+  const result = await appendUserMessageAndGetAssistantReply(
+    user.id,
+    sessionId,
+    content,
+  );
+  if (!result.ok) {
+    return { error: result.error };
   }
-
-  const prior = await prisma.chatMessage.findMany({
-    where: { sessionId },
-    orderBy: { createdAt: "asc" },
-    take: 40,
-    select: { role: true, content: true },
-  });
-
-  const history = prior.map((m) => ({
-    role: toOpenAIRole(m.role),
-    content: m.content,
-  }));
-  history.push({ role: "user", content });
-
-  const userRow = await prisma.chatMessage.create({
-    data: {
-      sessionId,
-      role: MessageRole.USER,
-      content,
-    },
-  });
-
-  let reply: string;
-  try {
-    reply = await generateAssistantReply(history);
-  } catch (e) {
-    await prisma.chatMessage.delete({ where: { id: userRow.id } });
-    return {
-      error: e instanceof Error ? e.message : "生成回复失败",
-    };
-  }
-
-  await prisma.chatMessage.create({
-    data: {
-      sessionId,
-      role: MessageRole.ASSISTANT,
-      content: reply,
-    },
-  });
-
-  await prisma.chatSession.update({
-    where: { id: sessionId },
-    data: {
-      title: session.title?.trim() ? session.title : content.slice(0, 40),
-      model: session.model ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-    },
-  });
 
   revalidatePath("/chat");
   return { error: null };
 }
 
-export async function createNewChatSession(): Promise<void> {
+export async function createNewChatSession(formData: FormData): Promise<void> {
   const user = await getSessionUser();
   if (!user) {
     redirect("/login");
   }
+
+  const raw = formData.get("courseId");
+  const courseId =
+    typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+
+  if (courseId) {
+    const course = await prisma.learningCourse.findFirst({
+      where: {
+        id: courseId,
+        OR: [{ ownerId: user.id }, { status: "PUBLISHED" }],
+      },
+    });
+    if (!course) {
+      redirect("/chat");
+    }
+    await prisma.chatSession.create({
+      data: {
+        userId: user.id,
+        title: course.title,
+        courseId: course.id,
+      },
+    });
+    revalidatePath("/chat");
+    redirect(`/chat?courseId=${encodeURIComponent(course.id)}`);
+  }
+
   await prisma.chatSession.create({
     data: { userId: user.id, title: "新对话" },
   });

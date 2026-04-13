@@ -15,9 +15,18 @@ type Props = {
   sessionId: string;
   initialMessages: ChatMessageVm[];
   userEmail: string;
+  /** 当前为「课程辅导」会话时传入，用于新对话继承课程与 UI 展示 */
+  courseId?: string | null;
+  courseTitle?: string | null;
 };
 
-export function ChatApp({ sessionId, initialMessages, userEmail }: Props) {
+export function ChatApp({
+  sessionId,
+  initialMessages,
+  userEmail,
+  courseId = null,
+  courseTitle = null,
+}: Props) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -45,16 +54,24 @@ export function ChatApp({ sessionId, initialMessages, userEmail }: Props) {
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-700/80 px-4 py-3">
         <div className="min-w-0">
           <h1 className="truncate text-sm font-semibold tracking-tight">
-            AI 助手
+            {courseTitle ? "课程辅导" : "AI 助手"}
           </h1>
           <p className="truncate text-xs text-zinc-500">{userEmail}</p>
+          {courseTitle ? (
+            <p className="mt-0.5 truncate text-xs text-emerald-400/90">
+              课程：{courseTitle}
+            </p>
+          ) : null}
         </div>
         <form action={createNewChatSession}>
+          {courseId ? (
+            <input name="courseId" type="hidden" value={courseId} />
+          ) : null}
           <button
             type="submit"
             className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700"
           >
-            新对话
+            {courseId ? "本课程新对话" : "新对话"}
           </button>
         </form>
       </header>
@@ -63,7 +80,9 @@ export function ChatApp({ sessionId, initialMessages, userEmail }: Props) {
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
           {initialMessages.length === 0 ? (
             <p className="py-12 text-center text-sm text-zinc-500">
-              开始与 AI 对话。输入内容后按发送或 Enter。
+              {courseTitle
+                ? "AI 将主要依据该课程的资料与说明作答。输入问题后发送。"
+                : "开始与 AI 对话。输入内容后按发送或 Enter。"}
             </p>
           ) : null}
           {initialMessages.map((m) => (

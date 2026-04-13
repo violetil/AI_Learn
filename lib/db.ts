@@ -12,9 +12,11 @@ function sqliteFilePathFromDatabaseUrl(databaseUrl: string): string {
     throw new Error("DATABASE_URL 须为 SQLite 的 file: 协议地址");
   }
   const withoutScheme = databaseUrl.replace(/^file:/i, "").replace(/^\/+/, "");
-  return path.isAbsolute(withoutScheme)
-    ? withoutScheme
-    : path.resolve(process.cwd(), withoutScheme);
+  if (path.isAbsolute(withoutScheme)) {
+    return withoutScheme;
+  }
+  // 与当前 Prisma CLI 的 file:./dev.db 解析保持一致：相对项目根目录
+  return path.resolve(process.cwd(), withoutScheme);
 }
 
 function createPrismaClient(): PrismaClient {
