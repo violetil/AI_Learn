@@ -1,23 +1,23 @@
 // AI 聊天系统 — 数据模型
-// 数据库：MySQL（与 AGENTS.md 一致；若使用 PostgreSQL，将 provider 改为 postgresql 即可）
+// 开发环境：SQLite（见 prisma.config.ts 中的 DATABASE_URL）
+// 生产环境可改为其他 provider，需与迁移策略一并调整
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
 }
 
 /// 应用用户（注册 / 登录）
 model User {
   id            String   @id @default(cuid())
-  email         String   @unique @db.VarChar(255)
-  name          String?  @db.VarChar(100)
+  email         String   @unique
+  name          String?
   /// 本地账号密码哈希（bcrypt 等）；若仅 OAuth 可为 null
-  passwordHash  String?  @db.VarChar(255)
-  image         String?  @db.VarChar(500)
+  passwordHash  String?
+  image         String?
   emailVerified DateTime?
 
   createdAt DateTime @default(now())
@@ -34,9 +34,9 @@ model ChatSession {
   userId String
 
   /// 会话标题（可由首条消息或模型自动生成）
-  title  String? @db.VarChar(500)
+  title  String?
   /// 使用的模型标识，如 gpt-4o、claude-3-5-sonnet
-  model  String? @db.VarChar(100)
+  model  String?
   status ChatSessionStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
@@ -56,7 +56,7 @@ model ChatMessage {
   sessionId String
 
   role    MessageRole
-  content String      @db.Text
+  content String
 
   /// 可选：本条消息估算 token 数，便于计费与统计
   tokenCount Int?

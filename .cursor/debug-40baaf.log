@@ -1,0 +1,2 @@
+{"sessionId":"40baaf","location":"lib/db.ts:pre-init","message":"Prisma init probe","data":{"hypothesisId":"H1","hasDATABASE_URL":true,"DATABASE_URL_length":13,"DATABASE_URL_prefix":"file:./dev.d","nodeEnv":"development","nextRuntime":"nodejs"},"timestamp":1776039497486}
+{"sessionId":"40baaf","location":"lib/db.ts:post-init","message":"PrismaClient constructed","data":{"runId":"post-fix","hypothesisId":"H2-fix","usedAdapter":true},"timestamp":1776039497490}
