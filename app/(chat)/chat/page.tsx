@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { MessageRole } from "../../../node_modules/.prisma/client/default";
 import { ChatApp, type ChatMessageVm } from "@/components/chat/chat-app";
 import { getSessionUser } from "@/lib/auth";
+import { isCourseMember } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
 type Search = { courseId?: string };
@@ -29,11 +30,15 @@ export default async function ChatPage({
   if (queryCourseId) {
     const course = await prisma.learningCourse.findFirst({
       where: {
-        id: queryCourseId,
-        OR: [{ ownerId: user.id }, { status: "PUBLISHED" }],
+        id: queryCourseId
       },
     });
     if (!course) {
+      redirect("/chat");
+    }
+    const canAccess =
+      course.ownerId === user.id || (await isCourseMember(user.id, course.id));
+    if (!canAccess) {
       redirect("/chat");
     }
     courseTitle = course.title;

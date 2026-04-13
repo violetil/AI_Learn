@@ -84,7 +84,14 @@ export default async function StudentDashboardPage({
             <ul className="space-y-3 text-sm">
               {myCourses.map((m) => (
                 <li key={m.id} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{m.course.title}</p>
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <Link
+                      href={`/student/courses/${m.course.id}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {m.course.title}
+                    </Link>
+                  </p>
                   <p className="mt-1 text-xs text-zinc-500">
                     课程码：<code>{m.course.courseCode}</code> · 状态 {m.course.status}
                   </p>

@@ -96,7 +96,14 @@ export default async function TeacherDashboardPage({
             <ul className="space-y-3 text-sm">
               {courses.map((course) => (
                 <li key={course.id} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
-                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{course.title}</p>
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <Link
+                      href={`/teacher/courses/${course.id}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {course.title}
+                    </Link>
+                  </p>
                   <p className="mt-1 text-xs text-zinc-500">
                     课程码：<code>{course.courseCode}</code> · 成员 {course._count.members} 人
                   </p>
