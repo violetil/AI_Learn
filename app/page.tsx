@@ -22,7 +22,15 @@ export default async function Home() {
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               已登录：<span className="font-medium text-zinc-900 dark:text-zinc-100">{user.email}</span>
             </p>
-            <LogoutButton />
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+                href="/chat"
+              >
+                AI 聊天
+              </Link>
+              <LogoutButton />
+            </div>
           </div>
         ) : (
           <div className="flex gap-3 text-sm">
