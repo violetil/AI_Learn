@@ -9,8 +9,8 @@ export function SectionCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-50">
+    <section className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm hover:shadow-md">
+      <h2 className="mb-3 text-base font-semibold text-[var(--app-fg)]">
         {title}
       </h2>
       {children}

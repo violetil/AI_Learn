@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useActionState } from "react";
+import { useEffect, useRef, useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createNewChatSession,
@@ -38,6 +38,7 @@ export function ChatApp({
   const formRef = useRef<HTMLFormElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const wasPending = useRef(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
 
   const [state, formAction, pending] = useActionState(
     sendChatMessage,
@@ -57,7 +58,7 @@ export function ChatApp({
   }, [initialMessages.length]);
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col bg-[#212121] text-zinc-100">
+    <div className="flex h-full min-h-[78vh] w-full flex-col rounded-2xl bg-[#212121] text-zinc-100">
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-700/80 px-4 py-3">
         <div className="min-w-0 space-y-1">
           <h1 className="truncate text-sm font-semibold tracking-tight">
@@ -71,6 +72,13 @@ export function ChatApp({
           ) : null}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            className="rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 transition hover:bg-zinc-700"
+          >
+            {historyOpen ? "收起历史" : "展开历史"}
+          </button>
           <form action={createNewChatSession}>
             {courseId ? (
               <input name="courseId" type="hidden" value={courseId} />
@@ -85,9 +93,10 @@ export function ChatApp({
         </div>
       </header>
 
-      <div className="shrink-0 border-b border-zinc-700/80 px-4 py-3">
-        <p className="mb-2 text-xs text-zinc-400">会话历史</p>
-        <ul className="max-h-40 space-y-2 overflow-y-auto">
+      {historyOpen ? (
+        <aside className="shrink-0 border-b border-zinc-700/80 px-4 py-3">
+          <p className="mb-2 text-xs text-zinc-400">会话历史</p>
+          <ul className="max-h-44 space-y-2 overflow-y-auto">
           {sessions.map((s) => {
             const active = s.id === sessionId;
             const href = courseId
@@ -125,7 +134,15 @@ export function ChatApp({
                       重命名
                     </button>
                   </form>
-                  <form action={deleteChatSessionAction}>
+                  <form
+                    action={deleteChatSessionAction}
+                    onSubmit={(e) => {
+                      const ok = window.confirm("确认删除该会话吗？删除后不可恢复。");
+                      if (!ok) {
+                        e.preventDefault();
+                      }
+                    }}
+                  >
                     <input type="hidden" name="sessionId" value={s.id} />
                     {courseId ? <input type="hidden" name="courseId" value={courseId} /> : null}
                     <button
@@ -139,8 +156,9 @@ export function ChatApp({
               </li>
             );
           })}
-        </ul>
-      </div>
+          </ul>
+        </aside>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">

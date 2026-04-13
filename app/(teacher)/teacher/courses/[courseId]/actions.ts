@@ -1,5 +1,8 @@
 "use server";
 
+import { mkdir, writeFile } from "node:fs/promises";
+import { extname, join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { MaterialKind } from "../../../../../node_modules/.prisma/client/default";
 import { requireRole } from "@/lib/authz";
@@ -54,6 +57,7 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
   const kindRaw = String(formData.get("kind") ?? MaterialKind.DOCUMENT).trim();
   const url = String(formData.get("url") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
+  const file = formData.get("file");
 
   if (!courseId) {
     redirect("/teacher?error=invalid-course");
@@ -71,13 +75,30 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
       ? (kindRaw as MaterialKind)
       : MaterialKind.DOCUMENT;
 
+  let finalKind = kind;
+  let finalUrl = url || null;
+
+  if (file instanceof File && file.size > 0) {
+    if (file.size > 10 * 1024 * 1024) {
+      redirect(`/teacher/courses/${encodeURIComponent(courseId)}?error=file-too-large`);
+    }
+    const safeExt = extname(file.name || "").slice(0, 10);
+    const fileName = `${Date.now()}-${randomUUID()}${safeExt}`;
+    const uploadsDir = join(process.cwd(), "public", "uploads", "materials");
+    await mkdir(uploadsDir, { recursive: true });
+    const bytes = await file.arrayBuffer();
+    await writeFile(join(uploadsDir, fileName), Buffer.from(bytes));
+    finalUrl = `/uploads/materials/${fileName}`;
+    finalKind = MaterialKind.FILE;
+  }
+
   await prisma.learningMaterial.create({
     data: {
       courseId,
       title,
       description: description || null,
-      kind,
-      url: url || null,
+      kind: finalKind,
+      url: finalUrl,
       content: content || null,
     },
   });

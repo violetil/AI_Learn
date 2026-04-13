@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3f5f9;
+  --foreground: #1f2937;
+  --app-bg: #f3f5f9;
+  --app-fg: #1f2937;
+  --app-surface: #ffffff;
+  --app-muted: #eef2f7;
+  --app-border: #d7dde7;
+  --app-subtle: #5f6b7d;
 }
 
 @theme inline {
@@ -12,15 +18,32 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --app-bg: #0b1220;
+  --app-fg: #e2e8f0;
+  --app-surface: #111a2d;
+  --app-muted: #1a2740;
+  --app-border: #263552;
+  --app-subtle: #93a4c2;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  transition: all 160ms ease;
+}
+
+button:hover,
+a:hover {
+  transform: translateY(-0.5px);
 }

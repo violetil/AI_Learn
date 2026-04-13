@@ -15,6 +15,7 @@ const errorMap: Record<string, string> = {
   "missing-title": "作业标题不能为空。",
   "invalid-dueAt": "截止时间格式无效。",
   "missing-material-title": "资料标题不能为空。",
+  "file-too-large": "上传文件超过 10MB，请压缩后重试。",
 };
 
 export default async function TeacherCourseDetailPage({
@@ -154,6 +155,14 @@ export default async function TeacherCourseDetailPage({
                 name="content"
                 rows={4}
                 className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>上传文件（可选，最大 10MB）</span>
+              <input
+                type="file"
+                name="file"
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               />
             </label>
             <label className="flex flex-col gap-1">
