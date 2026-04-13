@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { StudyRecordType } from "../../../../../node_modules/.prisma/client/default";
 import { requireRole } from "@/lib/authz";
+import { generateAssignmentInitialReview } from "@/lib/ai";
 import { getStudentCourseMembership } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
@@ -30,11 +31,18 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
       courseId,
       published: true,
     },
-    select: { id: true },
+    select: { id: true, title: true, description: true },
   });
   if (!assignment) {
     redirect(`/student/courses/${encodeURIComponent(courseId)}?error=assignment-not-found`);
   }
+
+  const aiResult = await generateAssignmentInitialReview({
+    courseTitle: membership.course.title,
+    assignmentTitle: assignment.title,
+    assignmentDescription: assignment.description,
+    answer,
+  });
 
   await prisma.studyRecord.create({
     data: {
@@ -45,9 +53,24 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
       note: answer,
       meta: {
         source: "student-assignment-form",
+        aiReview: {
+          strengths: aiResult.review.strengths,
+          issues: aiResult.review.issues,
+          suggestions: aiResult.review.suggestions,
+          scoreSuggestion: aiResult.review.scoreSuggestion,
+          model: aiResult.model,
+          mode: aiResult.mode,
+          reviewedAt: new Date().toISOString(),
+        },
+        aiReviewNotice: aiResult.userNotice,
+        aiReviewError: aiResult.error ?? null,
       },
     },
   });
 
-  redirect(`/student/courses/${encodeURIComponent(courseId)}?submitted=${encodeURIComponent(assignmentId)}`);
+  const query = new URLSearchParams({
+    submitted: assignmentId,
+    ai: aiResult.mode,
+  });
+  redirect(`/student/courses/${encodeURIComponent(courseId)}?${query.toString()}`);
 }

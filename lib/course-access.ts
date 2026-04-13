@@ -30,3 +30,13 @@ export async function isCourseMember(userId: string, courseId: string) {
   `;
   return Number(rows[0]?.count ?? 0) > 0;
 }
+
+export async function canAccessCourseChat(userId: string, courseId: string) {
+  const course = await prisma.learningCourse.findUnique({
+    where: { id: courseId },
+    select: { id: true, ownerId: true },
+  });
+  if (!course) return false;
+  if (course.ownerId === userId) return true;
+  return isCourseMember(userId, course.id);
+}

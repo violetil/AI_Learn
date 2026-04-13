@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { appendUserMessageAndGetAssistantReply } from "@/lib/chat-pipeline";
 import { getSessionUser } from "@/lib/auth";
+import { canAccessCourseChat } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 import type { SendMessageState } from "@/types/chat";
 
@@ -52,13 +53,14 @@ export async function createNewChatSession(formData: FormData): Promise<void> {
     typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
 
   if (courseId) {
-    const course = await prisma.learningCourse.findFirst({
-      where: {
-        id: courseId,
-        OR: [{ ownerId: user.id }, { status: "PUBLISHED" }],
-      },
+    const course = await prisma.learningCourse.findUnique({
+      where: { id: courseId },
     });
     if (!course) {
+      redirect("/chat");
+    }
+    const canAccess = await canAccessCourseChat(user.id, course.id);
+    if (!canAccess) {
       redirect("/chat");
     }
     await prisma.chatSession.create({

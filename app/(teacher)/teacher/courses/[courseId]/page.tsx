@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createAssignmentAction } from "@/app/(teacher)/teacher/courses/[courseId]/actions";
+import {
+  createAssignmentAction,
+  createMaterialAction,
+} from "@/app/(teacher)/teacher/courses/[courseId]/actions";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
-type Search = { created?: string; error?: string };
+type Search = { created?: string; materialCreated?: string; error?: string };
 
 const errorMap: Record<string, string> = {
   "missing-title": "作业标题不能为空。",
   "invalid-dueAt": "截止时间格式无效。",
+  "missing-material-title": "资料标题不能为空。",
 };
 
 export default async function TeacherCourseDetailPage({
@@ -35,6 +39,10 @@ export default async function TeacherCourseDetailPage({
     include: {
       _count: { select: { records: true } },
     },
+  });
+  const materials = await prisma.learningMaterial.findMany({
+    where: { courseId: course.id },
+    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
   });
 
   const memberCount = await prisma.courseMember.count({
@@ -62,8 +70,13 @@ export default async function TeacherCourseDetailPage({
           作业已创建。
         </p>
       ) : null}
+      {sp.materialCreated ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          资料已创建。
+        </p>
+      ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-4">
         <SectionCard title="发布作业">
           <form action={createAssignmentAction} className="space-y-3 text-sm">
             <input type="hidden" name="courseId" value={course.id} />
@@ -100,6 +113,61 @@ export default async function TeacherCourseDetailPage({
               className="rounded-md bg-zinc-900 px-3 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900"
             >
               创建作业
+            </button>
+          </form>
+        </SectionCard>
+
+        <SectionCard title="添加资料">
+          <form action={createMaterialAction} className="space-y-3 text-sm">
+            <input type="hidden" name="courseId" value={course.id} />
+            <label className="flex flex-col gap-1">
+              <span>资料标题</span>
+              <input
+                name="title"
+                required
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>类型</span>
+              <select
+                name="kind"
+                defaultValue="DOCUMENT"
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                <option value="DOCUMENT">文档</option>
+                <option value="LINK">链接</option>
+                <option value="VIDEO">视频</option>
+                <option value="FILE">文件</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>URL（可选）</span>
+              <input
+                name="url"
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>内容（可选）</span>
+              <textarea
+                name="content"
+                rows={4}
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>说明（可选）</span>
+              <input
+                name="description"
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-md bg-zinc-900 px-3 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              添加资料
             </button>
           </form>
         </SectionCard>
@@ -142,6 +210,33 @@ export default async function TeacherCourseDetailPage({
           </div>
         </SectionCard>
       </div>
+
+      <SectionCard title="资料列表">
+        {materials.length === 0 ? (
+          <p className="text-sm text-zinc-500">暂无资料。</p>
+        ) : (
+          <ul className="space-y-3 text-sm">
+            {materials.map((m) => (
+              <li key={m.id} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
+                <p className="font-medium text-zinc-900 dark:text-zinc-100">{m.title}</p>
+                <p className="mt-1 text-xs text-zinc-500">类型：{m.kind}</p>
+                {m.url ? (
+                  <p className="mt-1 text-xs">
+                    <a
+                      className="text-zinc-700 underline underline-offset-4 dark:text-zinc-300"
+                      href={m.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {m.url}
+                    </a>
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
     </div>
   );
 }

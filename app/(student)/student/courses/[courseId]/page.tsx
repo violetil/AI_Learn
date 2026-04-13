@@ -7,7 +7,7 @@ import { requireRole } from "@/lib/authz";
 import { getStudentCourseMembership } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
-type Search = { submitted?: string; error?: string };
+type Search = { submitted?: string; error?: string; ai?: string };
 
 const errorMap: Record<string, string> = {
   "empty-answer": "提交内容不能为空。",
@@ -33,6 +33,10 @@ export default async function StudentCourseDetailPage({
   const assignments = await prisma.assignment.findMany({
     where: { courseId, published: true },
     orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+  });
+  const materials = await prisma.learningMaterial.findMany({
+    where: { courseId },
+    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
   });
 
   const records = await prisma.studyRecord.findMany({
@@ -79,8 +83,48 @@ export default async function StudentCourseDetailPage({
           作业提交成功。
         </p>
       ) : null}
+      {sp.ai === "live" ? (
+        <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+          AI 初评已生成，教师可在审核环节查看并给出最终意见。
+        </p>
+      ) : null}
+      {sp.ai === "demo" ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          当前未配置或暂时无法使用 AI API，系统已用演示评语模板完成初评，不影响提交流程。
+        </p>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <SectionCard title="课程资料">
+          {materials.length === 0 ? (
+            <p className="text-sm text-zinc-500">教师暂未上传资料。</p>
+          ) : (
+            <ul className="space-y-3 text-sm">
+              {materials.map((m) => (
+                <li key={m.id} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">{m.title}</p>
+                  <p className="mt-1 text-xs text-zinc-500">类型：{m.kind}</p>
+                  {m.description ? (
+                    <p className="mt-1 text-xs text-zinc-500">{m.description}</p>
+                  ) : null}
+                  {m.url ? (
+                    <p className="mt-1 text-xs">
+                      <a
+                        className="text-zinc-700 underline underline-offset-4 dark:text-zinc-300"
+                        href={m.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        打开资料链接
+                      </a>
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+
         <SectionCard title="课程作业（已发布）">
           {assignments.length === 0 ? (
             <p className="text-sm text-zinc-500">教师暂未发布作业。</p>

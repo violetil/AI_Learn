@@ -1,6 +1,7 @@
 import { MessageRole } from "../node_modules/.prisma/client/default";
 import { generateAssistantReply } from "@/lib/ai";
 import { prismaCourseToPayload } from "./chat-course-context";
+import { canAccessCourseChat } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
 function toOpenAIRole(
@@ -26,6 +27,12 @@ export async function appendUserMessageAndGetAssistantReply(
 
   if (!session) {
     return { ok: false, error: "无权访问该会话" };
+  }
+  if (session.courseId) {
+    const canAccess = await canAccessCourseChat(userId, session.courseId);
+    if (!canAccess) {
+      return { ok: false, error: "无权访问该课程对话" };
+    }
   }
 
   const prior = await prisma.chatMessage.findMany({

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { MaterialKind } from "../../../../../node_modules/.prisma/client/default";
 import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
@@ -42,4 +43,44 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
   });
 
   redirect(`/teacher/courses/${encodeURIComponent(courseId)}?created=1`);
+}
+
+export async function createMaterialAction(formData: FormData): Promise<void> {
+  const user = await requireRole("TEACHER");
+
+  const courseId = String(formData.get("courseId") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const kindRaw = String(formData.get("kind") ?? MaterialKind.DOCUMENT).trim();
+  const url = String(formData.get("url") ?? "").trim();
+  const content = String(formData.get("content") ?? "").trim();
+
+  if (!courseId) {
+    redirect("/teacher?error=invalid-course");
+  }
+  const course = await getTeacherOwnedCourse(user.id, courseId);
+  if (!course) {
+    redirect("/teacher");
+  }
+  if (!title) {
+    redirect(`/teacher/courses/${encodeURIComponent(courseId)}?error=missing-material-title`);
+  }
+
+  const kind =
+    kindRaw in MaterialKind
+      ? (kindRaw as MaterialKind)
+      : MaterialKind.DOCUMENT;
+
+  await prisma.learningMaterial.create({
+    data: {
+      courseId,
+      title,
+      description: description || null,
+      kind,
+      url: url || null,
+      content: content || null,
+    },
+  });
+
+  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?materialCreated=1`);
 }
