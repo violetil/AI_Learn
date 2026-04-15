@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { reviewAssignmentSubmissionAction } from "@/app/(teacher)/teacher/courses/[courseId]/assignments/[assignmentId]/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
@@ -124,7 +125,7 @@ export default async function AssignmentReviewsPage({
         title={`提交列表（当前显示 ${filtered.length} / 总计 ${records.length}）`}
       >
         {records.length === 0 ? (
-          <p className="text-sm text-zinc-500">暂无学生提交。</p>
+          <EmptyState title="暂无提交" description="学生提交作业后，将在此列出并可审核。" />
         ) : (
           <>
             <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">

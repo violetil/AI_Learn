@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StudyRecordType } from "../../../../../node_modules/.prisma/client/default";
 import { submitAssignmentAction } from "@/app/(student)/student/courses/[courseId]/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/authz";
 import { getStudentCourseMembership } from "@/lib/course-access";
@@ -168,7 +169,7 @@ export default async function StudentCourseDetailPage({
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="课程资料">
           {materials.length === 0 ? (
-            <p className="text-sm text-zinc-500">教师暂未上传资料。</p>
+            <EmptyState title="暂无资料" description="教师上传后，你将在此查看课件与链接。" />
           ) : (
             <ul className="space-y-3 text-sm">
               {materials.map((m) => (
@@ -198,7 +199,7 @@ export default async function StudentCourseDetailPage({
 
         <SectionCard title="课程作业（已发布）">
           {assignments.length === 0 ? (
-            <p className="text-sm text-zinc-500">教师暂未发布作业。</p>
+            <EmptyState title="暂无已发布作业" description="请等待教师发布作业后再查看与提交。" />
           ) : (
             <ul className="space-y-4 text-sm">
               {assignments.map((a) => {
@@ -277,7 +278,7 @@ export default async function StudentCourseDetailPage({
 
         <SectionCard title="提交作业">
           {assignments.length === 0 ? (
-            <p className="text-sm text-zinc-500">暂无可提交作业。</p>
+            <EmptyState title="当前无可提交项" description="教师发布作业后即可在此提交答案。" />
           ) : (
             <form action={submitAssignmentAction} className="space-y-3 text-sm">
               <input type="hidden" name="courseId" value={courseId} />

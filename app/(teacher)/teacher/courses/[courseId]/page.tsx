@@ -4,6 +4,7 @@ import {
   createAssignmentAction,
   createMaterialAction,
 } from "@/app/(teacher)/teacher/courses/[courseId]/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
@@ -183,7 +184,7 @@ export default async function TeacherCourseDetailPage({
 
         <SectionCard title="作业列表">
           {assignments.length === 0 ? (
-            <p className="text-sm text-zinc-500">暂无作业。</p>
+            <EmptyState title="暂无作业" description="在左侧表单发布作业后，学生即可查看与提交。" />
           ) : (
             <ul className="space-y-3 text-sm">
               {assignments.map((a) => (
@@ -230,7 +231,7 @@ export default async function TeacherCourseDetailPage({
 
       <SectionCard title="资料列表">
         {materials.length === 0 ? (
-          <p className="text-sm text-zinc-500">暂无资料。</p>
+          <EmptyState title="暂无学习资料" description="上传文档、链接或文件，供学生课前预习。" />
         ) : (
           <ul className="space-y-3 text-sm">
             {materials.map((m) => (

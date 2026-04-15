@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createCourseAction } from "@/app/(teacher)/teacher/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -91,7 +92,10 @@ export default async function TeacherDashboardPage({
 
         <SectionCard title="我的课程">
           {courses.length === 0 ? (
-            <p className="text-sm text-zinc-500">还没有课程，先创建第一门课。</p>
+            <EmptyState
+              title="暂无课程"
+              description="创建第一门课程后，将课程码发给学生即可加入。"
+            />
           ) : (
             <ul className="space-y-3 text-sm">
               {courses.map((course) => (

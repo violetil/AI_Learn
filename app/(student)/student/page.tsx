@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { joinCourseAction } from "@/app/(student)/student/actions";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -79,7 +80,10 @@ export default async function StudentDashboardPage({
 
         <SectionCard title="我的课程">
           {myCourses.length === 0 ? (
-            <p className="text-sm text-zinc-500">还未加入任何课程。</p>
+            <EmptyState
+              title="暂无已加入课程"
+              description="向教师索取课程码，在左侧输入后即可加入。"
+            />
           ) : (
             <ul className="space-y-3 text-sm">
               {myCourses.map((m) => (

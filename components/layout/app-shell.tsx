@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { ThemeToggle } from "../ui/theme-toggle";
 import { FlashNotice } from "../ui/flash-notice";
 
@@ -23,7 +23,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-fg)]">
-      <FlashNotice />
+      <Suspense fallback={null}>
+        <FlashNotice />
+      </Suspense>
       <header className="sticky top-0 z-40 border-b border-[var(--app-border)] bg-[var(--app-surface)]/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import type { AppRole } from "@/types/auth";
 
-export type AppRole = "TEACHER" | "STUDENT";
+export type { AppRole } from "@/types/auth";
 
 /** 要求登录，否则重定向到登录页 */
 export async function requireSessionUser() {
