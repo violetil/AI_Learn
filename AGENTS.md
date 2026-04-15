@@ -67,7 +67,7 @@ If `/DESIGN.md` is missing or unclear:
 
 ## Database
 
-* MySQL
+* SQLite
 * ORM: Prisma
 
 ---
