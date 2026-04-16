@@ -29,8 +29,7 @@ function createPrismaClient(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-let prisma: PrismaClient;
-prisma = globalForPrisma.prisma ?? createPrismaClient();
+const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
 
 export { prisma };
 

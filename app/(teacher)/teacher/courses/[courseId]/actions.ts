@@ -26,12 +26,16 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
     redirect("/teacher");
   }
   if (!title) {
-    redirect(`/teacher/courses/${encodeURIComponent(courseId)}?error=missing-title`);
+    redirect(
+      `/teacher/courses/${encodeURIComponent(courseId)}?tab=assignments&error=missing-title`,
+    );
   }
 
   const dueAt = dueAtRaw ? new Date(dueAtRaw) : null;
   if (dueAtRaw && Number.isNaN(dueAt?.getTime())) {
-    redirect(`/teacher/courses/${encodeURIComponent(courseId)}?error=invalid-dueAt`);
+    redirect(
+      `/teacher/courses/${encodeURIComponent(courseId)}?tab=assignments&error=invalid-dueAt`,
+    );
   }
 
   await prisma.assignment.create({
@@ -45,7 +49,7 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
     },
   });
 
-  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?created=1`);
+  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?tab=assignments&created=1`);
 }
 
 export async function createMaterialAction(formData: FormData): Promise<void> {
@@ -67,7 +71,9 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
     redirect("/teacher");
   }
   if (!title) {
-    redirect(`/teacher/courses/${encodeURIComponent(courseId)}?error=missing-material-title`);
+    redirect(
+      `/teacher/courses/${encodeURIComponent(courseId)}?tab=materials&error=missing-material-title`,
+    );
   }
 
   const kind =
@@ -80,7 +86,9 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
 
   if (file instanceof File && file.size > 0) {
     if (file.size > 10 * 1024 * 1024) {
-      redirect(`/teacher/courses/${encodeURIComponent(courseId)}?error=file-too-large`);
+      redirect(
+        `/teacher/courses/${encodeURIComponent(courseId)}?tab=materials&error=file-too-large`,
+      );
     }
     const safeExt = extname(file.name || "").slice(0, 10);
     const fileName = `${Date.now()}-${randomUUID()}${safeExt}`;
@@ -103,5 +111,5 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
     },
   });
 
-  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?materialCreated=1`);
+  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?tab=materials&materialCreated=1`);
 }

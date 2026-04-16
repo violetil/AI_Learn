@@ -8,11 +8,14 @@ import { requireRole } from "@/lib/authz";
 import { getStudentCourseMembership } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
-type Search = { submitted?: string; error?: string; ai?: string };
+type Search = { submitted?: string; error?: string; ai?: string; ap?: string };
+
+const ASSIGN_LIST_PAGE_SIZE = 5;
 
 const errorMap: Record<string, string> = {
   "empty-answer": "提交内容不能为空。",
   "assignment-not-found": "作业不存在或尚未发布。",
+  "rate-limit": "操作过于频繁，请稍后再试。",
 };
 
 export default async function StudentCourseDetailPage({
@@ -35,6 +38,15 @@ export default async function StudentCourseDetailPage({
     where: { courseId, published: true },
     orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
   });
+
+  const ap = Math.max(1, Number.parseInt(sp.ap ?? "1", 10) || 1);
+  const assignPages = Math.max(1, Math.ceil(assignments.length / ASSIGN_LIST_PAGE_SIZE));
+  const apSafe = Math.min(ap, assignPages);
+  const assignStart = (apSafe - 1) * ASSIGN_LIST_PAGE_SIZE;
+  const assignmentsPage = assignments.slice(
+    assignStart,
+    assignStart + ASSIGN_LIST_PAGE_SIZE,
+  );
   const materials = await prisma.learningMaterial.findMany({
     where: { courseId },
     orderBy: [{ position: "asc" }, { createdAt: "desc" }],
@@ -150,22 +162,6 @@ export default async function StudentCourseDetailPage({
           {errorMap[sp.error] ?? "提交失败。"}
         </p>
       ) : null}
-      {sp.submitted ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          作业提交成功。
-        </p>
-      ) : null}
-      {sp.ai === "live" ? (
-        <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
-          AI 初评已生成，教师可在审核环节查看并给出最终意见。
-        </p>
-      ) : null}
-      {sp.ai === "demo" ? (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          当前未配置或暂时无法使用 AI API，系统已用演示评语模板完成初评，不影响提交流程。
-        </p>
-      ) : null}
-
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="课程资料">
           {materials.length === 0 ? (
@@ -201,8 +197,9 @@ export default async function StudentCourseDetailPage({
           {assignments.length === 0 ? (
             <EmptyState title="暂无已发布作业" description="请等待教师发布作业后再查看与提交。" />
           ) : (
+            <>
             <ul className="space-y-4 text-sm">
-              {assignments.map((a) => {
+              {assignmentsPage.map((a) => {
                 const latest = latestByAssignment.get(a.id);
                 const teacherReview = latest
                   ? parseTeacherReview(latest.meta)
@@ -228,32 +225,39 @@ export default async function StudentCourseDetailPage({
                       </p>
                     ) : null}
                     {latest ? (
-                      <p className="mt-1 text-xs text-emerald-600">
+                      <p className="mt-1 text-xs text-[var(--interactive-blue)]">
                         最近提交：{latest.createdAt.toLocaleString()}
                       </p>
                     ) : (
                       <p className="mt-1 text-xs text-zinc-500">尚未提交</p>
                     )}
                     {teacherReview.status ? (
-                      <div className="mt-2 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">
+                      <div className="mt-2 rounded-[8px] border border-[var(--interactive-blue)]/25 bg-[var(--interactive-blue)]/10 p-2 text-xs text-[var(--interactive-blue)]">
                         <p>
-                          教师审核：{teacherReview.status === "APPROVED" ? "已通过" : "需修改"}
+                          教师审核：
+                          {teacherReview.status === "APPROVED"
+                            ? "已通过"
+                            : teacherReview.status === "REJECTED"
+                              ? "已驳回"
+                              : teacherReview.status}
                           {teacherReview.reviewedAt
                             ? `（${new Date(teacherReview.reviewedAt).toLocaleString()}）`
                             : ""}
                         </p>
-                        <p className="mt-1">
+                        <p className="mt-1 text-[var(--app-fg)]">
                           教师评语：{teacherReview.comment?.trim() || "（教师未填写评语）"}
                         </p>
                       </div>
                     ) : latest ? (
-                      <p className="mt-2 text-xs text-zinc-500">教师尚未审核该次提交。</p>
+                      <div className="mt-2 rounded-[8px] border border-[var(--app-border)] bg-[var(--app-muted)] p-2 text-xs text-[var(--app-subtle)]">
+                        教师审核：待审核（最近一次提交已送达教师端）
+                      </div>
                     ) : null}
                     {latest && (aiReview.scoreSuggestion !== null ||
                     aiReview.strengths.length > 0 ||
                     aiReview.issues.length > 0 ||
                     aiReview.suggestions.length > 0) ? (
-                      <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">
+                      <div className="mt-2 rounded-[8px] border border-[var(--interactive-blue)]/20 bg-[var(--interactive-blue)]/8 p-2 text-xs text-[var(--app-fg)]">
                         <p>
                           AI 初评：建议分数 {aiReview.scoreSuggestion ?? "暂无"} · 来源
                           {aiReview.mode === "live" ? "真实 AI" : "演示模板"}
@@ -273,6 +277,30 @@ export default async function StudentCourseDetailPage({
                 );
               })}
             </ul>
+            {assignments.length > ASSIGN_LIST_PAGE_SIZE ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[var(--app-subtle)]">
+                {apSafe > 1 ? (
+                  <Link
+                    className="text-[var(--link-blue)] underline-offset-4 hover:underline"
+                    href={`/student/courses/${courseId}?ap=${apSafe - 1}`}
+                  >
+                    上一页
+                  </Link>
+                ) : null}
+                <span>
+                  第 {apSafe} / {assignPages} 页
+                </span>
+                {apSafe < assignPages ? (
+                  <Link
+                    className="text-[var(--link-blue)] underline-offset-4 hover:underline"
+                    href={`/student/courses/${courseId}?ap=${apSafe + 1}`}
+                  >
+                    下一页
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+            </>
           )}
         </SectionCard>
 

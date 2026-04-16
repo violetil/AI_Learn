@@ -1,5 +1,7 @@
 import { MessageRole } from "../node_modules/.prisma/client/default";
 import { generateAssistantReply } from "@/lib/ai";
+import { takeAiTurn } from "@/lib/ai-rate-limit";
+import { logStructured } from "@/lib/app-log";
 import { prismaCourseToPayload } from "./chat-course-context";
 import { canAccessCourseChat } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
@@ -21,6 +23,11 @@ export async function appendUserMessageAndGetAssistantReply(
   sessionId: string,
   content: string,
 ): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
+  const quota = takeAiTurn(userId);
+  if (!quota.ok) {
+    return { ok: false, error: quota.error };
+  }
+
   const session = await prisma.chatSession.findFirst({
     where: { id: sessionId, userId },
   });
@@ -68,6 +75,11 @@ export async function appendUserMessageAndGetAssistantReply(
     reply = await generateAssistantReply(history, { courseContext });
   } catch (e) {
     await prisma.chatMessage.delete({ where: { id: userRow.id } });
+    logStructured("ai_chat_reply_failed", {
+      userId,
+      sessionId,
+      err: e instanceof Error ? e.name : "unknown",
+    });
     return {
       ok: false,
       error: e instanceof Error ? e.message : "生成回复失败",

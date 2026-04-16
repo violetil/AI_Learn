@@ -1,14 +1,30 @@
 @import "tailwindcss";
 
+/* DESIGN.md — tokens + light/dark app surfaces */
 :root {
-  --background: #f3f5f9;
-  --foreground: #1f2937;
-  --app-bg: #f3f5f9;
-  --app-fg: #1f2937;
-  --app-surface: #ffffff;
-  --app-muted: #eef2f7;
-  --app-border: #d7dde7;
-  --app-subtle: #5f6b7d;
+  --surface-hero-dark: #000000;
+  --surface-section-light: #f5f5f7;
+  --surface-elevated-light: #ffffff;
+  --text-primary-light-bg: #1d1d1f;
+  --text-secondary-light: rgba(0, 0, 0, 0.48);
+  --interactive-blue: #0071e3;
+  --link-blue: #0066cc;
+  --link-blue-on-dark: #2997ff;
+  --focus-ring: #0071e3;
+  --nav-glass-bg: rgba(0, 0, 0, 0.8);
+  --card-shadow: 0 3px 30px 0 rgba(0, 0, 0, 0.22);
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-pill: 980px;
+
+  --background: var(--surface-section-light);
+  --foreground: var(--text-primary-light-bg);
+  --app-bg: var(--surface-section-light);
+  --app-fg: var(--text-primary-light-bg);
+  --app-surface: var(--surface-elevated-light);
+  --app-muted: #e8e8ed;
+  --app-border: rgba(0, 0, 0, 0.08);
+  --app-subtle: var(--text-secondary-light);
 }
 
 @theme inline {
@@ -19,20 +35,41 @@
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
-  --app-bg: #0b1220;
-  --app-fg: #e2e8f0;
-  --app-surface: #111a2d;
-  --app-muted: #1a2740;
-  --app-border: #263552;
-  --app-subtle: #93a4c2;
+  --surface-section-light: #1c1c1e;
+  --surface-elevated-light: #2c2c2e;
+  --text-primary-light-bg: #f5f5f7;
+  --text-secondary-light: rgba(255, 255, 255, 0.55);
+  --app-bg: #000000;
+  --app-fg: #f5f5f7;
+  --app-surface: #1c1c1e;
+  --app-muted: #2c2c2e;
+  --app-border: rgba(255, 255, 255, 0.12);
+  --app-subtle: rgba(255, 255, 255, 0.55);
+  --background: var(--app-bg);
+  --foreground: var(--app-fg);
+}
+
+html {
+  height: 100%;
 }
 
 body {
+  height: 100%;
+  margin: 0;
+  min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
 }
 
 button,
@@ -40,10 +77,21 @@ a,
 input,
 textarea,
 select {
-  transition: all 160ms ease;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
 }
 
-button:hover,
-a:hover {
-  transform: translateY(-0.5px);
+@media (prefers-reduced-motion: no-preference) {
+  button:hover:not(:disabled),
+  a:hover {
+    transform: translateY(-0.5px);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }

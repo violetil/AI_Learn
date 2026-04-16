@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { StudyRecordType } from "../../../../../node_modules/.prisma/client/default";
+import { takeAiTurn } from "@/lib/ai-rate-limit";
 import { requireRole } from "@/lib/authz";
 import { generateAssignmentInitialReview } from "@/lib/ai";
 import { getStudentCourseMembership } from "@/lib/course-access";
@@ -35,6 +36,13 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
   });
   if (!assignment) {
     redirect(`/student/courses/${encodeURIComponent(courseId)}?error=assignment-not-found`);
+  }
+
+  const quota = takeAiTurn(user.id);
+  if (!quota.ok) {
+    redirect(
+      `/student/courses/${encodeURIComponent(courseId)}?error=rate-limit`,
+    );
   }
 
   const aiResult = await generateAssignmentInitialReview({

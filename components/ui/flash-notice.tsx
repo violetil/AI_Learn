@@ -1,7 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { toast } from "sonner";
 
 type NoticeTone = "success" | "error" | "info";
 
@@ -14,11 +15,12 @@ const ERROR_HINTS: Record<string, string> = {
   "course-not-found": "课程码不存在",
   "empty-answer": "提交内容不能为空",
   "assignment-not-found": "作业不存在或未发布",
+  "rate-limit": "操作过于频繁，请稍后再试",
 };
 
 export function FlashNotice() {
   const searchParams = useSearchParams();
-  const [show, setShow] = useState(true);
+  const lastKey = useRef<string | null>(null);
 
   const notice = useMemo(() => {
     const errKey = searchParams.get("error");
@@ -26,13 +28,19 @@ export function FlashNotice() {
       const hint = ERROR_HINTS[errKey] ?? "请检查输入后重试";
       return { tone: "error" as NoticeTone, text: `操作未成功：${hint}` };
     }
-    if (
-      searchParams.get("created") ||
-      searchParams.get("joined") ||
-      searchParams.get("submitted") ||
-      searchParams.get("reviewed") ||
-      searchParams.get("materialCreated")
-    ) {
+    if (searchParams.get("submitted")) {
+      return { tone: "success" as NoticeTone, text: "作业提交成功。" };
+    }
+    if (searchParams.get("created")) {
+      return { tone: "success" as NoticeTone, text: "作业已创建。" };
+    }
+    if (searchParams.get("materialCreated")) {
+      return { tone: "success" as NoticeTone, text: "资料已创建。" };
+    }
+    if (searchParams.get("reviewed")) {
+      return { tone: "success" as NoticeTone, text: "审核结果已保存。" };
+    }
+    if (searchParams.get("joined")) {
       return { tone: "success" as NoticeTone, text: "操作成功。" };
     }
     if (searchParams.get("ai") === "demo") {
@@ -41,35 +49,32 @@ export function FlashNotice() {
         text: "当前为演示 AI 模式，流程正常可用。",
       };
     }
+    if (searchParams.get("ai") === "live") {
+      return {
+        tone: "info" as NoticeTone,
+        text: "AI 初评已生成，教师可在审核环节查看。",
+      };
+    }
     return null;
   }, [searchParams]);
 
   useEffect(() => {
-    setShow(true);
-  }, [searchParams]);
+    if (!notice) {
+      lastKey.current = null;
+      return;
+    }
+    const key = searchParams.toString();
+    if (key === lastKey.current) return;
+    lastKey.current = key;
 
-  useEffect(() => {
-    if (!notice) return;
-    const t = setTimeout(() => setShow(false), 1000);
-    return () => clearTimeout(t);
-  }, [notice]);
+    if (notice.tone === "error") {
+      toast.error(notice.text);
+    } else if (notice.tone === "success") {
+      toast.success(notice.text);
+    } else {
+      toast.message(notice.text);
+    }
+  }, [notice, searchParams]);
 
-  if (!notice || !show) return null;
-
-  const toneClass =
-    notice.tone === "success"
-      ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/50 dark:text-emerald-300"
-      : notice.tone === "error"
-        ? "border-red-300 bg-red-50 text-red-700 dark:border-red-700/60 dark:bg-red-950/50 dark:text-red-300"
-        : "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700/60 dark:bg-blue-950/50 dark:text-blue-300";
-
-  return (
-    <div className="pointer-events-none fixed right-4 top-20 z-50 max-w-sm">
-      <div
-        className={`rounded-xl border px-4 py-2 text-sm shadow-lg transition ${toneClass}`}
-      >
-        {notice.text}
-      </div>
-    </div>
-  );
+  return null;
 }

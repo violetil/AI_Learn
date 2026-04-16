@@ -3,13 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
+import { Toaster } from "sonner";
 import { ThemeToggle } from "../ui/theme-toggle";
 import { FlashNotice } from "../ui/flash-notice";
 
+function chatShell(pathname: string | null) {
+  return Boolean(pathname?.startsWith("/chat"));
+}
+
+function standaloneShell(pathname: string | null) {
+  return Boolean(
+    pathname === "/" ||
+      pathname?.startsWith("/login") ||
+      pathname?.startsWith("/register") ||
+      pathname?.startsWith("/dashboard"),
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
+  const isChat = chatShell(pathname);
+  const isStandalone = standaloneShell(pathname);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const title = useMemo(() => {
     if (!pathname) return "AI Learn";
@@ -22,75 +37,101 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-fg)]">
+    <div className="flex min-h-dvh flex-1 flex-col bg-[var(--app-bg)] text-[var(--app-fg)]">
+      <Toaster richColors position="top-center" />
       <Suspense fallback={null}>
         <FlashNotice />
       </Suspense>
-      <header className="sticky top-0 z-40 border-b border-[var(--app-border)] bg-[var(--app-surface)]/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLeftOpen((v) => !v)}
-              className="rounded-lg border border-[var(--app-border)] px-2.5 py-1.5 text-xs hover:bg-[var(--app-muted)]"
+
+      {isStandalone ? <main className="flex flex-1 flex-col">{children}</main> : null}
+
+      {!isStandalone ? (
+        <>
+          <header
+            className="sticky top-0 z-40 shrink-0 border-b border-white/10 text-white backdrop-blur-[20px] backdrop-saturate-180"
+            style={{ backgroundColor: "var(--nav-glass-bg)" }}
+          >
+            <div className="mx-auto flex w-full max-w-[61.25rem] items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:max-w-none lg:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  className="rounded-[var(--radius-md)] border border-white/20 px-2.5 py-1.5 text-xs text-white/90 hover:bg-white/10 lg:hidden"
+                  onClick={() => setMobileNavOpen((v) => !v)}
+                  aria-expanded={mobileNavOpen}
+                  aria-label="切换导航"
+                >
+                  菜单
+                </button>
+                <Link
+                  href="/"
+                  className="truncate text-sm font-semibold tracking-tight text-white hover:text-white/90"
+                >
+                  AI Learn
+                </Link>
+                <span className="hidden text-xs text-white/60 sm:inline">{title}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <ThemeToggle variant="nav" />
+              </div>
+            </div>
+            <div
+              className={`border-t border-white/10 lg:hidden ${mobileNavOpen ? "block" : "hidden"}`}
             >
-              左栏
-            </button>
-            <button
-              type="button"
-              onClick={() => setRightOpen((v) => !v)}
-              className="rounded-lg border border-[var(--app-border)] px-2.5 py-1.5 text-xs hover:bg-[var(--app-muted)]"
+              <nav className="mx-auto flex max-w-[61.25rem] flex-col gap-1 px-4 py-2 text-sm sm:px-6">
+                <NavItem href="/" label="首页" pathname={pathname} tone="onDark" />
+                <NavItem href="/teacher" label="教师端" pathname={pathname} tone="onDark" />
+                <NavItem href="/student" label="学生端" pathname={pathname} tone="onDark" />
+                <NavItem href="/chat" label="AI 对话" pathname={pathname} tone="onDark" />
+                <NavItem href="/login" label="登录" pathname={pathname} tone="onDark" />
+                <NavItem href="/register" label="注册" pathname={pathname} tone="onDark" />
+              </nav>
+            </div>
+          </header>
+
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+            <aside className="hidden w-[240px] shrink-0 border-r border-[var(--app-border)] bg-[var(--app-surface)] lg:block">
+              <nav className="sticky top-[49px] space-y-0.5 p-3 text-sm">
+                <NavItem href="/" label="首页" pathname={pathname} tone="onLight" />
+                <NavItem href="/teacher" label="教师端" pathname={pathname} tone="onLight" />
+                <NavItem href="/student" label="学生端" pathname={pathname} tone="onLight" />
+                <NavItem href="/chat" label="AI 对话" pathname={pathname} tone="onLight" />
+                <NavItem href="/login" label="登录" pathname={pathname} tone="onLight" />
+                <NavItem href="/register" label="注册" pathname={pathname} tone="onLight" />
+              </nav>
+            </aside>
+
+            <main
+              className={
+                isChat
+                  ? "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--app-bg)]"
+                  : "min-h-0 min-w-0 flex-1 overflow-y-auto bg-[var(--app-bg)]"
+              }
             >
-              右栏
-            </button>
-            <Link href="/" className="rounded-lg px-2 py-1 text-sm font-semibold hover:bg-[var(--app-muted)]">
-              AI Learn
-            </Link>
+              <div
+                className={
+                  isChat
+                    ? "flex min-h-0 flex-1 flex-col"
+                    : "mx-auto w-full max-w-[61.25rem] px-4 py-6 sm:px-6"
+                }
+              >
+                {children}
+              </div>
+            </main>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-[var(--app-subtle)] sm:inline">{title}</span>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
 
-      <div className="mx-auto grid w-full max-w-[1600px] grid-cols-1 gap-4 px-3 py-4 sm:px-6 lg:grid-cols-[240px_minmax(0,1fr)_260px]">
-        <aside
-          className={`${leftOpen ? "block" : "hidden"} rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 lg:block`}
-        >
-          <p className="mb-2 text-xs font-semibold text-[var(--app-subtle)]">导航</p>
-          <nav className="space-y-1 text-sm">
-            <NavItem href="/" label="首页" pathname={pathname} />
-            <NavItem href="/teacher" label="教师端" pathname={pathname} />
-            <NavItem href="/student" label="学生端" pathname={pathname} />
-            <NavItem href="/chat" label="AI 对话" pathname={pathname} />
-            <NavItem href="/login" label="登录" pathname={pathname} />
-            <NavItem href="/register" label="注册" pathname={pathname} />
-          </nav>
-        </aside>
-
-        <main className="min-h-[78vh] min-w-0 rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] shadow-sm">
-          {children}
-        </main>
-
-        <aside
-          className={`${rightOpen ? "block" : "hidden"} rounded-2xl border border-[var(--app-border)] bg-[var(--app-surface)] p-4 lg:block`}
-        >
-          <p className="mb-2 text-xs font-semibold text-[var(--app-subtle)]">提示面板</p>
-          <ul className="space-y-2 text-xs text-[var(--app-subtle)]">
-            <li className="rounded-lg bg-[var(--app-muted)] p-2">支持课程内聊天与通用聊天双模式。</li>
-            <li className="rounded-lg bg-[var(--app-muted)] p-2">表单成功/失败提示自动 1 秒淡出。</li>
-            <li className="rounded-lg bg-[var(--app-muted)] p-2">桌面端三栏布局，移动端自动折叠。</li>
-          </ul>
-        </aside>
-      </div>
-
-      <footer className="border-t border-[var(--app-border)] bg-[var(--app-surface)]">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-[var(--app-subtle)] sm:px-6">
-          <span>AI Learn Graduation Project</span>
-          <span>Next.js + Prisma + Server Actions</span>
-        </div>
-      </footer>
+          <footer className="shrink-0 border-t border-[var(--app-border)] bg-[var(--app-surface)]">
+            <div className="mx-auto flex w-full max-w-[61.25rem] flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-[var(--app-subtle)] sm:px-6">
+              <span>AI Learn</span>
+              <span className="text-[var(--app-subtle)]">
+                帮助：课程聊天仅限成员 ·{" "}
+                <Link href="/chat" className="text-[var(--link-blue)] hover:underline">
+                  打开对话
+                </Link>
+              </span>
+            </div>
+          </footer>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -99,19 +140,27 @@ function NavItem({
   href,
   label,
   pathname,
+  tone,
 }: {
   href: string;
   label: string;
   pathname: string | null;
+  tone: "onDark" | "onLight";
 }) {
   const active = href === "/" ? pathname === "/" : Boolean(pathname?.startsWith(href));
+  const activeCls =
+    tone === "onDark"
+      ? "bg-white/15 text-[var(--link-blue-on-dark)]"
+      : "bg-[var(--interactive-blue)]/12 text-[var(--interactive-blue)]";
+  const idleCls =
+    tone === "onDark"
+      ? "text-white/90 hover:bg-white/10"
+      : "text-[var(--app-fg)] hover:bg-[var(--app-muted)]";
   return (
     <Link
       href={href}
-      className={`block rounded-lg px-3 py-2 transition ${
-        active
-          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
-          : "text-[var(--app-fg)] hover:bg-[var(--app-muted)]"
+      className={`block rounded-[var(--radius-md)] px-3 py-2 text-sm transition ${
+        active ? activeCls : idleCls
       }`}
     >
       {label}

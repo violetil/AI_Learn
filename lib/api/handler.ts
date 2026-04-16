@@ -3,7 +3,7 @@
  */
 import { NextResponse } from "next/server";
 import type { ApiResult } from "@/lib/api-response";
-import { err, ok } from "@/lib/api-response";
+import { err } from "@/lib/api-response";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import type { SessionUser } from "@/types/auth";
 

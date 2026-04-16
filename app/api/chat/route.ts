@@ -1,7 +1,13 @@
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { appendUserMessageAndGetAssistantReply } from "@/lib/chat-pipeline";
 import { err, ok } from "@/lib/api-response";
 import { withAuthApiHandler } from "@/lib/api/handler";
+
+const ChatPostBodySchema = z.object({
+  message: z.string().trim().min(1).max(32000),
+  sessionId: z.string().trim().min(1).max(128),
+});
 
 /**
  * POST JSON: { "message": string, "sessionId": string }
@@ -16,21 +22,12 @@ export async function POST(request: Request) {
       return err("Invalid JSON body");
     }
 
-    const o =
-      typeof body === "object" && body !== null
-        ? (body as Record<string, unknown>)
-        : null;
-    const message =
-      o && typeof o.message === "string" ? o.message.trim() : "";
-    const sessionId =
-      o && typeof o.sessionId === "string" ? o.sessionId.trim() : "";
-
-    if (!message) {
-      return err("message is required");
+    const parsed = ChatPostBodySchema.safeParse(body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message ?? "Invalid body";
+      return err(msg);
     }
-    if (!sessionId) {
-      return err("sessionId is required");
-    }
+    const { message, sessionId } = parsed.data;
 
     const result = await appendUserMessageAndGetAssistantReply(
       user.id,

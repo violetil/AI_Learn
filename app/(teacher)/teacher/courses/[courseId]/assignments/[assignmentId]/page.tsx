@@ -7,7 +7,9 @@ import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
-type Search = { reviewed?: string; error?: string; filter?: string };
+type Search = { reviewed?: string; error?: string; filter?: string; p?: string };
+
+const PAGE_SIZE = 6;
 
 const errorMap: Record<string, string> = {
   "invalid-status": "审核状态无效，请重试。",
@@ -87,6 +89,7 @@ export default async function AssignmentReviewsPage({
   });
 
   const filter = sp.filter === "pending" || sp.filter === "reviewed" ? sp.filter : "all";
+  const page = Math.max(1, Number.parseInt(sp.p ?? "1", 10) || 1);
   const withParsed = records.map((record) => ({
     record,
     parsed: parseReviewMeta(record.meta),
@@ -98,6 +101,23 @@ export default async function AssignmentReviewsPage({
     if (filter === "reviewed") return Boolean(x.parsed.teacherReview);
     return true;
   });
+
+  const totalFiltered = filtered.length;
+  const pageCount = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const courseIdStr = course.id;
+  const assignmentIdStr = assignment.id;
+
+  function pageHref(next: number) {
+    const q = new URLSearchParams();
+    if (sp.filter) q.set("filter", sp.filter);
+    if (sp.error) q.set("error", sp.error);
+    if (sp.reviewed) q.set("reviewed", sp.reviewed);
+    q.set("p", String(next));
+    return `/teacher/courses/${courseIdStr}/assignments/${assignmentIdStr}?${q.toString()}`;
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-10">
@@ -115,14 +135,8 @@ export default async function AssignmentReviewsPage({
           {errorMap[sp.error] ?? "操作失败。"}
         </p>
       ) : null}
-      {sp.reviewed ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          审核结果已保存。
-        </p>
-      ) : null}
-
       <SectionCard
-        title={`提交列表（当前显示 ${filtered.length} / 总计 ${records.length}）`}
+        title={`提交列表（本页 ${paged.length} / 当前筛选 ${totalFiltered}，课程内总计 ${records.length}）`}
       >
         {records.length === 0 ? (
           <EmptyState title="暂无提交" description="学生提交作业后，将在此列出并可审核。" />
@@ -132,19 +146,19 @@ export default async function AssignmentReviewsPage({
               <span className="text-zinc-500">筛选：</span>
               <Link
                 className={filter === "all" ? "font-semibold underline underline-offset-4" : "underline underline-offset-4"}
-                href={`/teacher/courses/${course.id}/assignments/${assignment.id}`}
+                href={`/teacher/courses/${course.id}/assignments/${assignment.id}?p=1`}
               >
                 全部（{records.length}）
               </Link>
               <Link
                 className={filter === "pending" ? "font-semibold underline underline-offset-4" : "underline underline-offset-4"}
-                href={`/teacher/courses/${course.id}/assignments/${assignment.id}?filter=pending`}
+                href={`/teacher/courses/${course.id}/assignments/${assignment.id}?filter=pending&p=1`}
               >
                 待审核（{pendingCount}）
               </Link>
               <Link
                 className={filter === "reviewed" ? "font-semibold underline underline-offset-4" : "underline underline-offset-4"}
-                href={`/teacher/courses/${course.id}/assignments/${assignment.id}?filter=reviewed`}
+                href={`/teacher/courses/${course.id}/assignments/${assignment.id}?filter=reviewed&p=1`}
               >
                 已审核（{reviewedCount}）
               </Link>
@@ -154,7 +168,7 @@ export default async function AssignmentReviewsPage({
               <p className="text-sm text-zinc-500">当前筛选条件下暂无记录。</p>
             ) : (
               <ul className="space-y-4">
-                {filtered.map(({ record, parsed }) => {
+                {paged.map(({ record, parsed }) => {
               return (
                 <li key={record.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
                   <div className="space-y-2 text-sm">
@@ -242,6 +256,23 @@ export default async function AssignmentReviewsPage({
                 })}
               </ul>
             )}
+            {totalFiltered > PAGE_SIZE ? (
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                {safePage > 1 ? (
+                  <Link className="underline underline-offset-4" href={pageHref(safePage - 1)}>
+                    上一页
+                  </Link>
+                ) : null}
+                <span className="text-zinc-500">
+                  第 {safePage} / {pageCount} 页
+                </span>
+                {safePage < pageCount ? (
+                  <Link className="underline underline-offset-4" href={pageHref(safePage + 1)}>
+                    下一页
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
           </>
         )}
       </SectionCard>
