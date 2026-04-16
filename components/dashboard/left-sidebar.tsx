@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { useCourseContext } from "@/components/dashboard/course-context";
@@ -45,6 +45,7 @@ export function LeftSidebar({
   courses: SidebarCourse[];
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { currentCourseId, setCurrentCourse } = useCourseContext();
   const initials = (userName || userEmail).slice(0, 1).toUpperCase();
@@ -53,18 +54,27 @@ export function LeftSidebar({
   const courseAvatar = (currentCourse?.courseCode || "NO").slice(0, 6).toUpperCase();
   const currentSection = searchParams.get("section") ?? "overview";
 
+  const buildDashboardHref = (section: string, courseId: string | null) => {
+    const query = new URLSearchParams();
+    query.set("section", section);
+    if (courseId) {
+      query.set("courseId", courseId);
+    }
+    return `/dashboard?${query.toString()}`;
+  };
+
   const courseMenuItems: MenuItem[] = [
     {
       key: "overview",
       label: "Overview",
-      href: "/dashboard?section=overview",
+      href: buildDashboardHref("overview", currentCourseId),
       icon: "⌂",
       disabled: !currentCourseId,
     },
     {
       key: "library",
       label: "Library",
-      href: "/dashboard?section=library",
+      href: buildDashboardHref("library", currentCourseId),
       icon: "◫",
       disabled: !currentCourseId,
     },
@@ -128,7 +138,11 @@ export function LeftSidebar({
                     courses.map((course) => (
                       <DropdownMenuItem
                         key={course.id}
-                        onSelect={() => setCurrentCourse(course.id)}
+                        onSelect={() => {
+                          setCurrentCourse(course.id);
+                          const nextSection = searchParams.get("section") ?? "overview";
+                          router.push(buildDashboardHref(nextSection, course.id));
+                        }}
                         className={
                           course.id === currentCourseId
                             ? "bg-[#f2f9ff] text-[#097fe8]"

@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  reviewDashboardAssignmentAction,
+  submitDashboardAssignmentAction,
+} from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { AssignmentStatusBadge } from "@/components/dashboard/assignment-status-badge";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -84,18 +89,15 @@ function LibraryDialogBody({ item }: { item: LibraryItem }) {
 }
 
 function StudentAssignmentBody({
+  item,
   status,
   onSubmit,
 }: {
+  item: LibraryItem;
   status: StudentAssignmentStatus;
-  onSubmit: () => void;
+  onSubmit: (answer: string) => void;
 }) {
-  const [answers, setAnswers] = useState<Record<string, string>>({
-    q1: "",
-    q2: "",
-    q3: "",
-  });
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [answer, setAnswer] = useState(item.submissionAnswer ?? "");
   const isReadOnly = status !== "Not Started";
 
   if (status === "Submitted") {
@@ -109,9 +111,7 @@ function StudentAssignmentBody({
             </p>
           </article>
           <article className="space-y-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-5 text-sm leading-8 text-[rgba(0,0,0,0.9)]">
-            <p>1. 我认为 AI 在学习中的核心价值是“个性化反馈”...</p>
-            <p>2. 在案例一中，AI 通过连续追问帮助我定位概念误区...</p>
-            <p>3. 建议增加教师边界控制与过程性评价机制...</p>
+            <p>{item.submissionAnswer || "暂无提交内容。"}</p>
           </article>
         </div>
         <footer className="sticky bottom-0 z-10 flex items-center justify-between border-t border-[rgba(0,0,0,0.06)] bg-white/95 px-8 py-4 backdrop-blur-sm">
@@ -136,15 +136,14 @@ function StudentAssignmentBody({
           <article className="space-y-2 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
             <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)]">AI 评语摘要</p>
             <ul className="space-y-1.5 text-sm leading-6 text-[#615d59]">
-              <li>Strengths：结构完整，表达清晰。</li>
-              <li>Weaknesses：边界条件论证不足。</li>
-              <li>Suggestions：补充反例与评价指标。</li>
+              <li>Score：{item.aiReview?.scoreSuggestion ?? "-"} / 100</li>
+              <li>Strengths：{item.aiReview?.strengths?.join("；") || "暂无"}</li>
+              <li>Weaknesses：{item.aiReview?.issues?.join("；") || "暂无"}</li>
+              <li>Suggestions：{item.aiReview?.suggestions?.join("；") || "暂无"}</li>
             </ul>
           </article>
           <article className="space-y-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-5 text-sm leading-8 text-[rgba(0,0,0,0.9)]">
-            <p>1. 我认为 AI 在学习中的核心价值是“个性化反馈”...</p>
-            <p>2. 在案例一中，AI 通过连续追问帮助我定位概念误区...</p>
-            <p>3. 建议增加教师边界控制与过程性评价机制...</p>
+            <p>{item.submissionAnswer || "暂无提交内容。"}</p>
           </article>
         </div>
         <footer className="sticky bottom-0 z-10 flex items-center justify-between border-t border-[rgba(0,0,0,0.06)] bg-white/95 px-8 py-4 backdrop-blur-sm">
@@ -154,15 +153,6 @@ function StudentAssignmentBody({
       </section>
     );
   }
-
-  useEffect(() => {
-    if (isReadOnly) return;
-    setSaveState("saving");
-    const timer = window.setTimeout(() => {
-      setSaveState("saved");
-    }, 700);
-    return () => window.clearTimeout(timer);
-  }, [answers, isReadOnly]);
 
   return (
     <section className="flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -177,13 +167,8 @@ function StudentAssignmentBody({
             <li>分析不低于 500 字。</li>
             <li>引用资料请在文中标注来源。</li>
           </ul>
-          <p>
-            附图示例（占位）：
-            <img
-              alt="assignment-illustration"
-              src="https://dummyimage.com/960x280/f1f0ef/9b9690&text=Assignment+Reference+Image"
-              className="mt-2 w-full rounded-xl border border-[rgba(0,0,0,0.06)]"
-            />
+          <p className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f8f7f6] p-3 text-sm text-[#615d59]">
+            附图示例区域（当前已接入真实作业提交，展示图由后续附件系统提供）。
           </p>
           <p className="rounded-xl bg-[#f8f7f6] p-3 text-sm text-[#615d59]">
             附件：课程资料《学习分析框架.pdf》 · 参考链接：https://example.com
@@ -193,32 +178,10 @@ function StudentAssignmentBody({
         <article className="space-y-3">
           <h4 className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">问题 1：核心观点总结</h4>
           <textarea
-            value={answers.q1}
-            onChange={(e) => setAnswers((prev) => ({ ...prev, q1: e.target.value }))}
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
             readOnly={isReadOnly}
             placeholder="在这里直接作答，不需要跳转到底部表单。"
-            className="min-h-28 w-full rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-4 py-3 text-sm leading-7 text-[rgba(0,0,0,0.9)] outline-none focus:ring-2 focus:ring-[#097fe8] disabled:cursor-not-allowed disabled:bg-[#f8f7f6]"
-          />
-        </article>
-
-        <article className="space-y-3">
-          <h4 className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">问题 2：案例分析</h4>
-          <textarea
-            value={answers.q2}
-            onChange={(e) => setAnswers((prev) => ({ ...prev, q2: e.target.value }))}
-            readOnly={isReadOnly}
-            placeholder="请描述至少两个 AI 辅助学习案例。"
-            className="min-h-36 w-full rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-4 py-3 text-sm leading-7 text-[rgba(0,0,0,0.9)] outline-none focus:ring-2 focus:ring-[#097fe8] disabled:cursor-not-allowed disabled:bg-[#f8f7f6]"
-          />
-        </article>
-
-        <article className="space-y-3">
-          <h4 className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">问题 3：改进建议</h4>
-          <textarea
-            value={answers.q3}
-            onChange={(e) => setAnswers((prev) => ({ ...prev, q3: e.target.value }))}
-            readOnly={isReadOnly}
-            placeholder="给出可执行的改进方案。"
             className="min-h-28 w-full rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white px-4 py-3 text-sm leading-7 text-[rgba(0,0,0,0.9)] outline-none focus:ring-2 focus:ring-[#097fe8] disabled:cursor-not-allowed disabled:bg-[#f8f7f6]"
           />
         </article>
@@ -230,13 +193,9 @@ function StudentAssignmentBody({
             ? status === "Submitted"
               ? "已提交，当前为只读模式。"
               : "已评分，当前为只读模式。"
-            : saveState === "saving"
-              ? "自动保存中..."
-              : saveState === "saved"
-                ? "已自动保存"
-                : "开始作答后将自动保存"}
+            : "输入答案后点击提交，提交后将进入只读模式。"}
         </p>
-        <Button disabled={isReadOnly} onClick={onSubmit}>
+        <Button disabled={isReadOnly || answer.trim().length === 0} onClick={() => onSubmit(answer)}>
           提交作业
         </Button>
       </footer>
@@ -245,22 +204,18 @@ function StudentAssignmentBody({
 }
 
 function TeacherAssignmentBody({
+  item,
   studentStatus,
-  onMarkGraded,
+  onReview,
 }: {
+  item: LibraryItem;
   studentStatus: StudentAssignmentStatus;
-  onMarkGraded: () => void;
+  onReview: (status: "APPROVED" | "REJECTED", comment: string) => void;
 }) {
-  const [score, setScore] = useState("86");
-  const [comment, setComment] = useState("论证结构清晰，建议补充更多案例对比。");
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
-
-  useEffect(() => {
-    if (studentStatus === "Graded") return;
-    setSaveState("saving");
-    const timer = window.setTimeout(() => setSaveState("saved"), 650);
-    return () => window.clearTimeout(timer);
-  }, [score, comment, studentStatus]);
+  const [score, setScore] = useState(String(item.aiReview?.scoreSuggestion ?? 86));
+  const [comment, setComment] = useState(
+    item.teacherReviewComment || "论证结构清晰，建议补充更多案例对比。",
+  );
 
   return (
     <section className="flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -276,15 +231,7 @@ function TeacherAssignmentBody({
           <article className="space-y-3">
             <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">学生回答</h3>
             <div className="space-y-4 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-5 text-sm leading-8 text-[rgba(0,0,0,0.9)]">
-              <p>
-                我认为 AI 在学习中的核心价值是“个性化反馈”。它可以根据学生的历史行为生成分层练习，并针对错误点给出即时解释。
-              </p>
-              <p>
-                在案例一中，AI 通过连续追问帮助我定位了概率统计中的概念误区；在案例二中，AI 给出了作业结构建议，使我的论证逻辑更完整。
-              </p>
-              <p>
-                但 AI 也可能带来“过度依赖”问题，因此需要教师设置明确边界，例如要求学生提供自己的思考过程与引用依据。
-              </p>
+              <p>{item.submissionAnswer || "当前还没有学生提交答案。"}</p>
             </div>
           </article>
         </div>
@@ -295,31 +242,36 @@ function TeacherAssignmentBody({
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f8f7f6] p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Score</p>
-              <p className="mt-2 text-2xl font-semibold tracking-tight text-[rgba(0,0,0,0.9)]">84 / 100</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-[rgba(0,0,0,0.9)]">
+                {item.aiReview?.scoreSuggestion ?? "-"} / 100
+              </p>
               <p className="mt-1 text-xs text-[#8a847f]">模型建议分，仅供教师最终评分参考</p>
             </article>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Strengths</p>
               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#615d59]">
-                <li>结构完整，论证顺序清晰。</li>
-                <li>案例选择具有代表性。</li>
+                {(item.aiReview?.strengths?.length ? item.aiReview.strengths : ["暂无"]).map((text) => (
+                  <li key={text}>{text}</li>
+                ))}
               </ul>
             </article>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Weaknesses</p>
               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#615d59]">
-                <li>风险分析深度不足。</li>
-                <li>缺少反例讨论与边界说明。</li>
+                {(item.aiReview?.issues?.length ? item.aiReview.issues : ["暂无"]).map((text) => (
+                  <li key={text}>{text}</li>
+                ))}
               </ul>
             </article>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Suggestions</p>
               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#615d59]">
-                <li>补充 1-2 个失败案例对比。</li>
-                <li>增加可执行的改进路径与评价指标。</li>
+                {(item.aiReview?.suggestions?.length ? item.aiReview.suggestions : ["暂无"]).map((text) => (
+                  <li key={text}>{text}</li>
+                ))}
               </ul>
             </article>
           </section>
@@ -343,11 +295,7 @@ function TeacherAssignmentBody({
             <p className="text-xs text-[#8a847f]">
               {studentStatus === "Graded"
                 ? "已批改，当前内容为只读参考。"
-                : saveState === "saving"
-                  ? "自动保存中..."
-                  : saveState === "saved"
-                    ? "已自动保存"
-                    : "修改后将自动保存"}
+                : "修改分数和评语后，点击下方按钮提交批改结果。"}
             </p>
           </section>
 
@@ -356,12 +304,11 @@ function TeacherAssignmentBody({
             <p className="text-sm text-[#615d59]">
               当前：{studentStatus === "Graded" ? "已批改" : "未批改"}
             </p>
-            <Button
-              className="w-full"
-              onClick={onMarkGraded}
-              disabled={studentStatus === "Graded"}
-            >
+            <Button className="w-full" onClick={() => onReview("APPROVED", `${comment}\n最终分数：${score}`)}>
               标记为已批改
+            </Button>
+            <Button variant="secondary" className="w-full" onClick={() => onReview("REJECTED", comment)}>
+              驳回并退回学生
             </Button>
           </section>
         </aside>
@@ -381,13 +328,11 @@ export function LibraryPageDialog({
   onOpenChange: (open: boolean) => void;
   userRole: UserRole;
 }) {
-  const [assignmentStatus, setAssignmentStatus] = useState<StudentAssignmentStatus>("Not Started");
-
-  useEffect(() => {
-    if (item?.type === "assignment" && item.status) {
-      setAssignmentStatus(item.status);
-    }
-  }, [item]);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const assignmentStatus: StudentAssignmentStatus =
+    item?.type === "assignment" && item.status ? item.status : "Not Started";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -399,32 +344,75 @@ export function LibraryPageDialog({
               {item.course} 的内容详情预览弹窗
             </DialogDescription>
             <LibraryDialogHeader
-              item={{
-                ...item,
-                status: item.type === "assignment" ? assignmentStatus : item.status,
-              }}
+              item={item}
               userRole={userRole}
               onClose={() => onOpenChange(false)}
             />
-            <LibraryDialogMeta
-              item={{
-                ...item,
-                status: item.type === "assignment" ? assignmentStatus : item.status,
-              }}
-            />
+            <LibraryDialogMeta item={item} />
             {item.type === "assignment" && userRole === "STUDENT" ? (
               <StudentAssignmentBody
+                key={item.id}
+                item={item}
                 status={assignmentStatus}
-                onSubmit={() => setAssignmentStatus("Submitted")}
+                onSubmit={(answer) => {
+                  setActionError(null);
+                  startTransition(async () => {
+                    const result = await submitDashboardAssignmentAction({
+                      courseId: item.courseId,
+                      assignmentId: item.id,
+                      answer,
+                    });
+                    if (!result.success) {
+                      setActionError(result.error);
+                      return;
+                    }
+                    router.refresh();
+                    onOpenChange(false);
+                  });
+                }}
               />
             ) : item.type === "assignment" && userRole === "TEACHER" ? (
               <TeacherAssignmentBody
+                key={item.id}
+                item={item}
                 studentStatus={assignmentStatus}
-                onMarkGraded={() => setAssignmentStatus("Graded")}
+                onReview={(status, comment) => {
+                  const recordId = item.submissionRecordId;
+                  if (!recordId) {
+                    setActionError("当前没有可批改的提交记录。");
+                    return;
+                  }
+                  setActionError(null);
+                  startTransition(async () => {
+                    const result = await reviewDashboardAssignmentAction({
+                      courseId: item.courseId,
+                      assignmentId: item.id,
+                      recordId,
+                      status,
+                      comment,
+                    });
+                    if (!result.success) {
+                      setActionError(result.error);
+                      return;
+                    }
+                    router.refresh();
+                    onOpenChange(false);
+                  });
+                }}
               />
             ) : (
               <LibraryDialogBody item={item} />
             )}
+            {actionError ? (
+              <div className="border-t border-[rgba(0,0,0,0.06)] px-8 py-3 text-xs text-[#8f3a3a]">
+                {actionError}
+              </div>
+            ) : null}
+            {isPending ? (
+              <div className="border-t border-[rgba(0,0,0,0.06)] px-8 py-3 text-xs text-[#7a746f]">
+                正在同步数据...
+              </div>
+            ) : null}
           </div>
         ) : null}
       </DialogContent>

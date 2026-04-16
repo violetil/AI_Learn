@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { createDashboardLibraryItemAction } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import {
   CreateLibraryItemDialog,
@@ -17,70 +19,6 @@ import { LibraryTableHeader } from "@/components/dashboard/library-table-header"
 import { LibraryTableRow } from "@/components/dashboard/library-table-row";
 import type { LibraryItem, LibraryTab } from "@/components/dashboard/library-types";
 
-const INITIAL_ITEMS: LibraryItem[] = [
-  {
-    id: "mat-1",
-    name: "神经网络入门讲义",
-    icon: "📄",
-    course: "AI Basics",
-    createdBy: "王老师",
-    createdAt: "2026-04-10",
-    lastEdited: "今天",
-    type: "material",
-    description: "课程基础资料，介绍神经网络核心概念。",
-  },
-  {
-    id: "mat-2",
-    name: "机器学习评估方法",
-    icon: "📄",
-    course: "AI Basics",
-    createdBy: "王老师",
-    createdAt: "2026-04-09",
-    lastEdited: "昨天",
-    type: "material",
-    description: "Precision / Recall / F1 指标与使用场景。",
-  },
-  {
-    id: "as-1",
-    name: "作业 1：回归分析",
-    icon: "✓",
-    course: "AI Basics",
-    createdBy: "王老师",
-    createdAt: "2026-04-08",
-    status: "Submitted",
-    dueDate: "4 月 22 日",
-    lastEdited: "2 天前",
-    type: "assignment",
-    description: "提交回归模型实验报告与结果分析。",
-  },
-  {
-    id: "as-2",
-    name: "作业 2：案例反思",
-    icon: "✓",
-    course: "AI Basics",
-    createdBy: "王老师",
-    createdAt: "2026-04-07",
-    status: "Graded",
-    dueDate: "4 月 28 日",
-    lastEdited: "3 天前",
-    type: "assignment",
-    description: "围绕 AI 辅助学习写一份案例反思。",
-  },
-  {
-    id: "as-3",
-    name: "作业 3：学习路径设计",
-    icon: "✓",
-    course: "AI Basics",
-    createdBy: "王老师",
-    createdAt: "2026-04-06",
-    status: "Not Started",
-    dueDate: "5 月 2 日",
-    lastEdited: "4 天前",
-    type: "assignment",
-    description: "根据课程知识点设计一条 AI 辅助学习路径。",
-  },
-];
-
 const TAB_OPTIONS: Array<{ id: LibraryTab; label: string }> = [
   { id: "recents", label: "Recents" },
   { id: "materials", label: "Materials" },
@@ -89,45 +27,48 @@ const TAB_OPTIONS: Array<{ id: LibraryTab; label: string }> = [
 
 export function CourseLibraryPage({
   initialTab,
+  courseId,
+  initialItems,
   courseTitle,
   userRole,
 }: {
   initialTab: LibraryTab;
+  courseId: string;
+  initialItems: LibraryItem[];
   courseTitle: string;
   userRole: "TEACHER" | "STUDENT";
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [tab, setTab] = useState<LibraryTab>(initialTab);
-  const [itemsSource, setItemsSource] = useState<LibraryItem[]>(INITIAL_ITEMS);
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [createMode, setCreateMode] = useState<"assignment" | "material" | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const items = useMemo(() => {
-    if (tab === "recents") return itemsSource;
-    if (tab === "materials") return itemsSource.filter((item) => item.type === "material");
-    return itemsSource.filter((item) => item.type === "assignment");
-  }, [itemsSource, tab]);
+    if (tab === "recents") return initialItems;
+    if (tab === "materials") return initialItems.filter((item) => item.type === "material");
+    return initialItems.filter((item) => item.type === "assignment");
+  }, [initialItems, tab]);
 
   const handleCreate = (payload: CreatePayload) => {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const newItem: LibraryItem = {
-      id: `new-${Date.now()}`,
-      name: payload.name,
-      icon: payload.mode === "assignment" ? "✓" : "📄",
-      course: courseTitle,
-      createdBy: "当前教师",
-      createdAt: `${yyyy}-${mm}-${dd}`,
-      status: payload.mode === "assignment" ? "Not Started" : undefined,
-      dueDate: payload.mode === "assignment" ? payload.dueDate ?? "-" : undefined,
-      lastEdited: "刚刚",
-      type: payload.mode,
-      description: payload.description + (payload.link ? `\n\n资料链接：${payload.link}` : ""),
-    };
-
-    setItemsSource((prev) => [newItem, ...prev]);
-    setTab(payload.mode === "assignment" ? "assignments" : "materials");
+    setCreateError(null);
+    startTransition(async () => {
+      const result = await createDashboardLibraryItemAction({
+        courseId,
+        mode: payload.mode,
+        name: payload.name,
+        description: payload.description,
+        dueDate: payload.dueDate,
+        link: payload.link,
+      });
+      if (!result.success) {
+        setCreateError(result.error);
+        return;
+      }
+      setTab(payload.mode === "assignment" ? "assignments" : "materials");
+      router.refresh();
+    });
   };
 
   return (
@@ -167,6 +108,11 @@ export function CourseLibraryPage({
           </Button>
         </div>
       </header>
+      {createError ? (
+        <p className="rounded-lg border border-[rgba(194,70,70,0.2)] bg-[rgba(194,70,70,0.08)] px-3 py-2 text-xs text-[#8f3a3a]">
+          {createError}
+        </p>
+      ) : null}
 
       <div className="flex items-center gap-1.5">
         {TAB_OPTIONS.map((option) => (
@@ -222,6 +168,7 @@ export function CourseLibraryPage({
           if (!open) setCreateMode(null);
         }}
         onCreate={handleCreate}
+        pending={isPending}
       />
     </div>
   );

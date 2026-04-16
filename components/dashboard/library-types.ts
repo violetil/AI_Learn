@@ -17,6 +17,7 @@ export function getAssignmentStatusForRole(
 
 export type LibraryItem = {
   id: string;
+  courseId: string;
   name: string;
   icon: string;
   course: string;
@@ -27,4 +28,16 @@ export type LibraryItem = {
   lastEdited: string;
   type: "material" | "assignment";
   description: string;
+  submissionRecordId?: string;
+  submissionAnswer?: string;
+  teacherReviewStatus?: "APPROVED" | "REJECTED" | null;
+  teacherReviewComment?: string | null;
+  aiReview?: {
+    scoreSuggestion?: number | null;
+    strengths?: string[];
+    issues?: string[];
+    suggestions?: string[];
+    mode?: string;
+    model?: string;
+  } | null;
 };

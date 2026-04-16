@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
@@ -19,25 +19,18 @@ export function CreateLibraryItemDialog({
   mode,
   onOpenChange,
   onCreate,
+  pending = false,
 }: {
   open: boolean;
   mode: CreateMode;
   onOpenChange: (open: boolean) => void;
   onCreate: (payload: CreatePayload) => void;
+  pending?: boolean;
 }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [link, setLink] = useState("");
-
-  useEffect(() => {
-    if (!open) {
-      setName("");
-      setDescription("");
-      setDueDate("");
-      setLink("");
-    }
-  }, [open]);
 
   const title = useMemo(() => {
     if (mode === "assignment") return "New Assignment";
@@ -47,10 +40,23 @@ export function CreateLibraryItemDialog({
 
   const isAssignment = mode === "assignment";
   const isMaterial = mode === "material";
-  const canSubmit = Boolean(mode && name.trim().length > 0 && description.trim().length > 0);
+  const canSubmit = Boolean(
+    !pending && mode && name.trim().length > 0 && description.trim().length > 0,
+  );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setName("");
+          setDescription("");
+          setDueDate("");
+          setLink("");
+        }
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="max-w-2xl overflow-hidden p-0">
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">Create a new library item</DialogDescription>
@@ -131,7 +137,7 @@ export function CreateLibraryItemDialog({
                 onOpenChange(false);
               }}
             >
-              Create
+              {pending ? "Creating..." : "Create"}
             </Button>
           </footer>
         </div>

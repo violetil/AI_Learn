@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CourseProvider } from "@/components/dashboard/course-context";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { MainContent } from "@/components/dashboard/main-content";
 import { RightSidebar } from "@/components/dashboard/right-sidebar";
+import type { DashboardCourseData } from "@/lib/dashboard-data";
 
 type DashboardCourse = {
   id: string;
@@ -18,6 +19,8 @@ type DashboardLayoutProps = {
   userEmail: string;
   userRole: "TEACHER" | "STUDENT";
   courses: DashboardCourse[];
+  initialCourseId: string | null;
+  initialData: DashboardCourseData;
 };
 
 export function DashboardLayout({
@@ -25,10 +28,12 @@ export function DashboardLayout({
   userEmail,
   userRole,
   courses,
+  initialCourseId,
+  initialData,
 }: DashboardLayoutProps) {
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isRightOpen, setIsRightOpen] = useState(true);
-  const [currentCourseId, setCurrentCourseId] = useState<string | null>(courses[0]?.id ?? null);
+  const [currentCourseId, setCurrentCourseId] = useState<string | null>(initialCourseId);
   const searchParams = useSearchParams();
   const toggleLeftSidebar = () => setIsLeftOpen((prev) => !prev);
   const toggleRightSidebar = () => setIsRightOpen((prev) => !prev);
@@ -39,6 +44,10 @@ export function DashboardLayout({
       : section === "library" || section === "assignments" || section === "materials"
         ? "Library"
         : "Overview";
+
+  useEffect(() => {
+    setCurrentCourseId(initialCourseId);
+  }, [initialCourseId]);
 
   return (
     <CourseProvider
@@ -62,6 +71,7 @@ export function DashboardLayout({
             courses={courses}
             currentPageLabel={currentPageLabel}
             userRole={userRole}
+            initialData={initialData}
           />
         </div>
         <RightSidebar
@@ -69,6 +79,7 @@ export function DashboardLayout({
           isOpen={isRightOpen}
           toggleRightSidebar={toggleRightSidebar}
           courses={courses}
+          initialData={initialData.chat}
         />
       </div>
     </CourseProvider>

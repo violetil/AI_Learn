@@ -5,6 +5,7 @@ import { CourseLibraryPage } from "@/components/dashboard/course-library-page";
 import { useCourseContext } from "@/components/dashboard/course-context";
 import type { LibraryTab } from "@/components/dashboard/library-types";
 import { useSearchParams } from "next/navigation";
+import type { DashboardCourseData } from "@/lib/dashboard-data";
 
 type MainContentCourse = {
   id: string;
@@ -17,11 +18,13 @@ export function MainContent({
   courses,
   currentPageLabel,
   userRole,
+  initialData,
 }: {
   children?: React.ReactNode;
   courses: MainContentCourse[];
   currentPageLabel?: string;
   userRole: "TEACHER" | "STUDENT";
+  initialData: DashboardCourseData;
 }) {
   const searchParams = useSearchParams();
   const { currentCourseId } = useCourseContext();
@@ -60,12 +63,18 @@ export function MainContent({
 
           {children ??
             (currentCourse && isOverview ? (
-              <CourseHome courseTitle={currentCourse.title} courseCode={currentCourse.courseCode} />
+              <CourseHome
+                courseTitle={currentCourse.title}
+                courseCode={currentCourse.courseCode}
+                overviewData={initialData.overview}
+              />
             ) : currentCourse && isLibrary ? (
               <CourseLibraryPage
                 initialTab={initialLibraryTab}
                 courseTitle={currentCourse.title}
                 userRole={userRole}
+                courseId={currentCourse.id}
+                initialItems={initialData.libraryItems}
               />
             ) : (
               <div className="space-y-4">

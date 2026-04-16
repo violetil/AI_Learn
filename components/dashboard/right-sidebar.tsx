@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useCourseContext } from "@/components/dashboard/course-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,19 +12,74 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { DashboardChatData } from "@/lib/dashboard-data";
+
+type ChatMessage = {
+  id: string;
+  role: "USER" | "ASSISTANT" | "SYSTEM";
+  content: string;
+};
 
 export function RightSidebar({
   isOpen,
   toggleRightSidebar,
   courses,
+  initialData,
 }: {
   isOpen: boolean;
   toggleRightSidebar: () => void;
   courses: Array<{ id: string; title: string; courseCode: string }>;
+  initialData: DashboardChatData | null;
 }) {
   const { currentCourseId } = useCourseContext();
+  const [isPending, startTransition] = useTransition();
+  const [input, setInput] = useState("");
+  const [sessionId, setSessionId] = useState(initialData?.sessionId ?? "");
+  const [sessions, setSessions] = useState(initialData?.sessions ?? []);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialData?.initialMessages ?? []);
+  const [chatError, setChatError] = useState<string | null>(null);
   const currentCourse = courses.find((course) => course.id === currentCourseId) ?? null;
   const currentCourseTitle = currentCourse?.title ?? null;
+  const canChat = Boolean(currentCourseId && currentCourseTitle);
+
+  const activeSessionTitle = useMemo(() => {
+    const active = sessions.find((session) => session.id === sessionId);
+    return active?.title ?? "当前会话";
+  }, [sessionId, sessions]);
+
+  const fetchSidebarChatData = async (nextSessionId?: string) => {
+    if (!currentCourseId) return;
+    const query = new URLSearchParams({ courseId: currentCourseId });
+    if (nextSessionId) {
+      query.set("sessionId", nextSessionId);
+    }
+    const response = await fetch(`/api/dashboard/chat?${query.toString()}`);
+    const payload = (await response.json()) as
+      | { success: true; data: { sessionId: string; sessions: typeof sessions; messages: ChatMessage[] } }
+      | { success: false; error: string };
+    if (!payload.success) {
+      setChatError(payload.error);
+      return;
+    }
+    setChatError(null);
+    setSessionId(payload.data.sessionId);
+    setSessions(payload.data.sessions);
+    setMessages(payload.data.messages);
+  };
+
+  useEffect(() => {
+    if (!currentCourseId) {
+      setSessionId("");
+      setSessions([]);
+      setMessages([]);
+      setChatError(null);
+      return;
+    }
+    startTransition(async () => {
+      await fetchSidebarChatData();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCourseId]);
 
   if (!isOpen) {
     return (
@@ -58,15 +114,57 @@ export function RightSidebar({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Recent Chats</DropdownMenuLabel>
-                    <DropdownMenuItem>Math Homework Review</DropdownMenuItem>
-                    <DropdownMenuItem>Course Summary Helper</DropdownMenuItem>
-                    <DropdownMenuItem>Exam Practice Q&A</DropdownMenuItem>
+                    {sessions.length === 0 ? (
+                      <DropdownMenuItem disabled>No chat history</DropdownMenuItem>
+                    ) : (
+                      sessions.map((session) => (
+                        <DropdownMenuItem
+                          key={session.id}
+                          onSelect={() => {
+                            startTransition(async () => {
+                              await fetchSidebarChatData(session.id);
+                            });
+                          }}
+                        >
+                          {session.title}
+                        </DropdownMenuItem>
+                      ))
+                    )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>View All History</DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href={currentCourseId ? `/chat?courseId=${currentCourseId}` : "/chat"}>
+                        View Fullscreen
+                      </a>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : null}
-              <Button variant="secondary" size="sm" className="h-8 rounded-lg text-xs">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-8 rounded-lg text-xs"
+                disabled={!canChat || isPending}
+                onClick={() => {
+                  if (!currentCourseId) return;
+                  startTransition(async () => {
+                    const response = await fetch("/api/dashboard/chat", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({ courseId: currentCourseId }),
+                    });
+                    const payload = (await response.json()) as
+                      | { success: true; data: { sessionId: string } }
+                      | { success: false; error: string };
+                    if (!payload.success) {
+                      setChatError(payload.error);
+                      return;
+                    }
+                    await fetchSidebarChatData(payload.data.sessionId);
+                  });
+                }}
+              >
                 New Chat
               </Button>
               <Button
@@ -90,15 +188,27 @@ export function RightSidebar({
         <div className="flex-1 overflow-y-auto px-4 py-5">
           {currentCourseTitle ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] p-4 text-xs leading-6 text-[#615d59] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                AI Chat Content Placeholder
+              <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f8f7f6] p-3 text-xs text-[#615d59]">
+                {activeSessionTitle}
               </div>
-              <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] p-4 text-xs leading-6 text-[#615d59] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                后续在这里渲染对话消息流（支持长列表滚动）。
-              </div>
-              <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] p-4 text-xs leading-6 text-[#615d59] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                预留系统提示、学习建议与作业批改反馈展示区域。
-              </div>
+              {messages.length === 0 ? (
+                <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] p-4 text-xs leading-6 text-[#615d59] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                  暂无消息，开始与当前课程 AI 助手对话。
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`rounded-xl border p-4 text-xs leading-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] ${
+                      message.role === "USER"
+                        ? "border-[rgba(9,127,232,0.16)] bg-[#f2f9ff] text-[#305874]"
+                        : "border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] text-[#615d59]"
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                ))
+              )}
             </div>
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -109,6 +219,11 @@ export function RightSidebar({
             </div>
           )}
         </div>
+        {chatError ? (
+          <div className="border-t border-[rgba(0,0,0,0.08)] bg-[#fff7f7] px-3 py-2 text-xs text-[#8f3a3a]">
+            {chatError}
+          </div>
+        ) : null}
 
         <div className="border-t border-[rgba(0,0,0,0.08)] bg-white px-3 py-3">
           <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white p-2 shadow-[0_8px_20px_rgba(0,0,0,0.06),0_2px_6px_rgba(0,0,0,0.03)]">
@@ -118,7 +233,35 @@ export function RightSidebar({
                   ? "Ask AI anything about your course..."
                   : "Select a course to start AI chat..."
               }
-              disabled={!currentCourseTitle}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                if (!sessionId || !input.trim()) return;
+                startTransition(async () => {
+                  const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      message: input.trim(),
+                      sessionId,
+                    }),
+                  });
+                  const payload = (await response.json()) as
+                    | { success: true }
+                    | { success: false; error: string };
+                  if (!payload.success) {
+                    setChatError(payload.error);
+                    return;
+                  }
+                  setInput("");
+                  await fetchSidebarChatData(sessionId);
+                });
+              }}
+              disabled={!currentCourseTitle || isPending || !sessionId}
               className="h-10 rounded-xl border-0 px-2 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>

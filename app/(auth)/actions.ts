@@ -8,10 +8,9 @@ import {
   setSessionCookie,
 } from "@/lib/auth";
 import type { AuthFormState } from "@/types/auth";
-import type { AppRole } from "@/lib/authz";
 
-function roleHome(role: AppRole): string {
-  return role === "TEACHER" ? "/teacher" : "/student";
+function roleHome(): string {
+  return "/dashboard";
 }
 
 export async function loginAction(
@@ -33,7 +32,7 @@ export async function loginAction(
   }
 
   await setSessionCookie(result.user.id, result.user.email);
-  redirect(roleHome(result.user.role));
+  redirect(roleHome());
 }
 
 export async function registerAction(
@@ -42,7 +41,8 @@ export async function registerAction(
 ): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const role = String(formData.get("role") ?? "STUDENT") as AppRole;
+  const roleRaw = String(formData.get("role") ?? "STUDENT");
+  const role = roleRaw === "TEACHER" ? "TEACHER" : "STUDENT";
 
   const result = await registerUser(email, password, role);
   if (!result.ok) {
@@ -53,7 +53,7 @@ export async function registerAction(
   }
 
   await setSessionCookie(result.user.id, result.user.email);
-  redirect(roleHome(result.user.role));
+  redirect(roleHome());
 }
 
 export async function logoutAction(): Promise<void> {
