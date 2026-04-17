@@ -2,13 +2,97 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { MaterialKind, StudyRecordType } from "@prisma/client";
+import { CourseMemberRole, CourseStatus, MaterialKind, StudyRecordType } from "@prisma/client";
 import { generateAssignmentInitialReview } from "@/lib/ai";
 import { requireRole, requireSessionUser } from "@/lib/authz";
 import { getStudentCourseMembership, getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
 
-type ActionResult = { success: true } | { success: false; error: string };
+type ActionResult =
+  | { success: true; data?: { courseId?: string } }
+  | { success: false; error: string };
+
+function generateCourseCode() {
+  return `C-${Math.random().toString(36).slice(2, 8).toUpperCase()}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
+}
+
+const createCourseSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).optional(),
+  status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
+});
+
+export async function createDashboardCourseAction(
+  payload: z.infer<typeof createCourseSchema>,
+): Promise<ActionResult> {
+  const user = await requireRole("TEACHER");
+  const parsed = createCourseSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, error: "课程信息无效，请检查后重试。" };
+  }
+
+  const { title, description, status } = parsed.data;
+  const course = await prisma.learningCourse.create({
+    data: {
+      ownerId: user.id,
+      title,
+      description: description || null,
+      status: status === "PUBLISHED" ? CourseStatus.PUBLISHED : CourseStatus.DRAFT,
+      courseCode: generateCourseCode(),
+      members: {
+        create: {
+          userId: user.id,
+          role: CourseMemberRole.OWNER,
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true, data: { courseId: course.id } };
+}
+
+const joinCourseSchema = z.object({
+  courseCode: z.string().trim().min(1).max(64),
+});
+
+export async function joinDashboardCourseAction(
+  payload: z.infer<typeof joinCourseSchema>,
+): Promise<ActionResult> {
+  const user = await requireRole("STUDENT");
+  const parsed = joinCourseSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, error: "课程码格式无效。" };
+  }
+
+  const normalizedCode = parsed.data.courseCode.toUpperCase();
+  const course = await prisma.learningCourse.findUnique({
+    where: { courseCode: normalizedCode },
+    select: { id: true },
+  });
+  if (!course) {
+    return { success: false, error: "课程码不存在，请确认后重试。" };
+  }
+
+  await prisma.courseMember.upsert({
+    where: {
+      courseId_userId: {
+        courseId: course.id,
+        userId: user.id,
+      },
+    },
+    update: {},
+    create: {
+      courseId: course.id,
+      userId: user.id,
+      role: CourseMemberRole.STUDENT,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true, data: { courseId: course.id } };
+}
 
 const createLibrarySchema = z.object({
   courseId: z.string().trim().min(1),

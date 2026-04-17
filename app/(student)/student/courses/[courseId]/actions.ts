@@ -15,15 +15,15 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
   const answer = String(formData.get("answer") ?? "").trim();
 
   if (!courseId || !assignmentId) {
-    redirect("/student?error=invalid-course");
+    redirect("/dashboard?section=library");
   }
 
   const membership = await getStudentCourseMembership(user.id, courseId);
   if (!membership) {
-    redirect("/student");
+    redirect("/dashboard?section=library");
   }
   if (!answer) {
-    redirect(`/student/courses/${encodeURIComponent(courseId)}?error=empty-answer`);
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const assignment = await prisma.assignment.findFirst({
@@ -35,14 +35,12 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
     select: { id: true, title: true, description: true },
   });
   if (!assignment) {
-    redirect(`/student/courses/${encodeURIComponent(courseId)}?error=assignment-not-found`);
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const quota = takeAiTurn(user.id);
   if (!quota.ok) {
-    redirect(
-      `/student/courses/${encodeURIComponent(courseId)}?error=rate-limit`,
-    );
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const aiResult = await generateAssignmentInitialReview({
@@ -76,9 +74,5 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
     },
   });
 
-  const query = new URLSearchParams({
-    submitted: assignmentId,
-    ai: aiResult.mode,
-  });
-  redirect(`/student/courses/${encodeURIComponent(courseId)}?${query.toString()}`);
+  redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
 }

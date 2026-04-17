@@ -47,7 +47,7 @@ export function RegisterForm() {
               autoComplete="email"
               name="email"
               type="email"
-              placeholder="name@company.com"
+              placeholder="请输入邮箱地址"
             />
           </div>
 

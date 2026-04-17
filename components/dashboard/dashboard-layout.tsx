@@ -40,10 +40,12 @@ export function DashboardLayout({
   const section = searchParams.get("section") ?? "overview";
   const currentPageLabel =
     section === "overview"
-      ? "Overview"
+      ? "总览"
       : section === "library" || section === "assignments" || section === "materials"
-        ? "Library"
-        : "Overview";
+        ? "资料库"
+        : section === "ai"
+          ? "AI 助手"
+          : "总览";
 
   useEffect(() => {
     setCurrentCourseId(initialCourseId);

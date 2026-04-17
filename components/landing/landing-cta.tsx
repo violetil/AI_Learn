@@ -15,7 +15,7 @@ export function LandingCta({ isLoggedIn }: { isLoggedIn: boolean }) {
         </p>
         <div className="mt-8">
           <Button asChild size="lg">
-            <Link href={href}>Start for Free</Link>
+            <Link href={href}>免费开始使用</Link>
           </Button>
         </div>
       </div>

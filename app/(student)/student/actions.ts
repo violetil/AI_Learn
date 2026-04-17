@@ -12,7 +12,7 @@ export async function joinCourseAction(formData: FormData): Promise<void> {
   const courseCode = raw.trim().toUpperCase();
 
   if (!courseCode) {
-    redirect("/student?error=missing-code");
+    redirect("/dashboard?section=overview");
   }
 
   const course = await prisma.learningCourse.findUnique({
@@ -20,7 +20,7 @@ export async function joinCourseAction(formData: FormData): Promise<void> {
     select: { id: true, status: true },
   });
   if (!course) {
-    redirect("/student?error=course-not-found");
+    redirect("/dashboard?section=overview");
   }
 
   await prisma.courseMember.upsert({
@@ -38,5 +38,5 @@ export async function joinCourseAction(formData: FormData): Promise<void> {
     },
   });
 
-  redirect(`/student?joined=${encodeURIComponent(course.id)}`);
+  redirect(`/dashboard?section=overview&courseId=${encodeURIComponent(course.id)}`);
 }

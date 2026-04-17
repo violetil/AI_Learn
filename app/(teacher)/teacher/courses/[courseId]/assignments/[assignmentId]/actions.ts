@@ -16,17 +16,15 @@ export async function reviewAssignmentSubmissionAction(formData: FormData): Prom
   const comment = String(formData.get("comment") ?? "").trim();
 
   if (!courseId || !assignmentId || !recordId) {
-    redirect("/teacher?error=invalid-review");
+    redirect("/dashboard?section=library");
   }
   if (status !== "APPROVED" && status !== "REJECTED") {
-    redirect(
-      `/teacher/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}?error=invalid-status`,
-    );
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const course = await getTeacherOwnedCourse(user.id, courseId);
   if (!course) {
-    redirect("/teacher");
+    redirect("/dashboard?section=library");
   }
 
   const record = await prisma.studyRecord.findFirst({
@@ -39,9 +37,7 @@ export async function reviewAssignmentSubmissionAction(formData: FormData): Prom
     select: { id: true, meta: true },
   });
   if (!record) {
-    redirect(
-      `/teacher/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}?error=record-not-found`,
-    );
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const existingMeta =
@@ -64,7 +60,5 @@ export async function reviewAssignmentSubmissionAction(formData: FormData): Prom
     },
   });
 
-  redirect(
-    `/teacher/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}?reviewed=1`,
-  );
+  redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
 }

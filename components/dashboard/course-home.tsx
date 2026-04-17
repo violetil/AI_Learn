@@ -17,9 +17,9 @@ type OverviewData = {
 
 function getGreetingByTime(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "早上好";
+  if (hour < 18) return "下午好";
+  return "晚上好";
 }
 
 function SectionBlock({

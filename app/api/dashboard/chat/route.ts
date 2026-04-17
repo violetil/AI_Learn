@@ -132,7 +132,6 @@ export async function POST(request: Request) {
       select: { id: true },
     });
     revalidatePath("/dashboard");
-    revalidatePath("/chat");
     return ok({ sessionId: created.id });
   });
 }

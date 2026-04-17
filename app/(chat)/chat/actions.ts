@@ -38,7 +38,7 @@ export async function sendChatMessage(
     return { error: result.error };
   }
 
-  revalidatePath("/chat");
+  revalidatePath("/dashboard");
   return { error: null };
 }
 
@@ -57,30 +57,28 @@ export async function createNewChatSession(formData: FormData): Promise<void> {
       where: { id: courseId },
     });
     if (!course) {
-      redirect("/chat");
+      redirect("/dashboard?section=ai");
     }
     const canAccess = await canAccessCourseChat(user.id, course.id);
     if (!canAccess) {
-      redirect("/chat");
+      redirect("/dashboard?section=ai");
     }
-    const created = await prisma.chatSession.create({
+    await prisma.chatSession.create({
       data: {
         userId: user.id,
         title: course.title,
         courseId: course.id,
       },
     });
-    revalidatePath("/chat");
-    redirect(
-      `/chat?courseId=${encodeURIComponent(course.id)}&sessionId=${encodeURIComponent(created.id)}`,
-    );
+    revalidatePath("/dashboard");
+    redirect(`/dashboard?section=ai&courseId=${encodeURIComponent(course.id)}`);
   }
 
-  const created = await prisma.chatSession.create({
+  await prisma.chatSession.create({
     data: { userId: user.id, title: "新对话" },
   });
-  revalidatePath("/chat");
-  redirect(`/chat?sessionId=${encodeURIComponent(created.id)}`);
+  revalidatePath("/dashboard");
+  redirect("/dashboard?section=ai");
 }
 
 export async function renameChatSessionAction(formData: FormData): Promise<void> {
@@ -110,12 +108,12 @@ export async function renameChatSessionAction(formData: FormData): Promise<void>
     where: { id: session.id },
     data: { title: title.slice(0, 80) },
   });
-  revalidatePath("/chat");
+  revalidatePath("/dashboard");
 
-  const query = new URLSearchParams();
-  if (courseId) query.set("courseId", courseId);
-  query.set("sessionId", session.id);
-  redirect(`/chat?${query.toString()}`);
+  if (courseId) {
+    redirect(`/dashboard?section=ai&courseId=${encodeURIComponent(courseId)}`);
+  }
+  redirect("/dashboard?section=ai");
 }
 
 export async function deleteChatSessionAction(formData: FormData): Promise<void> {
@@ -143,9 +141,10 @@ export async function deleteChatSessionAction(formData: FormData): Promise<void>
   await prisma.chatSession.delete({
     where: { id: session.id },
   });
-  revalidatePath("/chat");
+  revalidatePath("/dashboard");
 
-  const query = new URLSearchParams();
-  if (courseId) query.set("courseId", courseId);
-  redirect(query.toString() ? `/chat?${query.toString()}` : "/chat");
+  if (courseId) {
+    redirect(`/dashboard?section=ai&courseId=${encodeURIComponent(courseId)}`);
+  }
+  redirect("/dashboard?section=ai");
 }

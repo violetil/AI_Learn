@@ -19,23 +19,19 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
   const published = String(formData.get("published") ?? "") === "on";
 
   if (!courseId) {
-    redirect("/teacher?error=invalid-course");
+    redirect("/dashboard?section=library");
   }
   const course = await getTeacherOwnedCourse(user.id, courseId);
   if (!course) {
-    redirect("/teacher");
+    redirect("/dashboard?section=library");
   }
   if (!title) {
-    redirect(
-      `/teacher/courses/${encodeURIComponent(courseId)}?tab=assignments&error=missing-title`,
-    );
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const dueAt = dueAtRaw ? new Date(dueAtRaw) : null;
   if (dueAtRaw && Number.isNaN(dueAt?.getTime())) {
-    redirect(
-      `/teacher/courses/${encodeURIComponent(courseId)}?tab=assignments&error=invalid-dueAt`,
-    );
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   await prisma.assignment.create({
@@ -49,7 +45,7 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
     },
   });
 
-  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?tab=assignments&created=1`);
+  redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
 }
 
 export async function createMaterialAction(formData: FormData): Promise<void> {
@@ -64,16 +60,14 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
   const file = formData.get("file");
 
   if (!courseId) {
-    redirect("/teacher?error=invalid-course");
+    redirect("/dashboard?section=library");
   }
   const course = await getTeacherOwnedCourse(user.id, courseId);
   if (!course) {
-    redirect("/teacher");
+    redirect("/dashboard?section=library");
   }
   if (!title) {
-    redirect(
-      `/teacher/courses/${encodeURIComponent(courseId)}?tab=materials&error=missing-material-title`,
-    );
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
   const kind =
@@ -86,9 +80,7 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
 
   if (file instanceof File && file.size > 0) {
     if (file.size > 10 * 1024 * 1024) {
-      redirect(
-        `/teacher/courses/${encodeURIComponent(courseId)}?tab=materials&error=file-too-large`,
-      );
+      redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
     }
     const safeExt = extname(file.name || "").slice(0, 10);
     const fileName = `${Date.now()}-${randomUUID()}${safeExt}`;
@@ -111,5 +103,5 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
     },
   });
 
-  redirect(`/teacher/courses/${encodeURIComponent(courseId)}?tab=materials&materialCreated=1`);
+  redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
 }

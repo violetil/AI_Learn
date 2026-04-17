@@ -19,12 +19,12 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return err("Invalid JSON body");
+      return err("请求体必须为有效的 JSON");
     }
 
     const parsed = ChatPostBodySchema.safeParse(body);
     if (!parsed.success) {
-      const msg = parsed.error.issues[0]?.message ?? "Invalid body";
+      const msg = parsed.error.issues[0]?.message ?? "请求参数无效";
       return err(msg);
     }
     const { message, sessionId } = parsed.data;
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return err(result.error);
     }
 
-    revalidatePath("/chat");
+    revalidatePath("/dashboard");
     return ok({ reply: result.reply });
   });
 }

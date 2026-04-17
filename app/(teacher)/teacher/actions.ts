@@ -20,10 +20,10 @@ export async function createCourseAction(formData: FormData): Promise<void> {
     statusRaw === CourseStatus.PUBLISHED ? CourseStatus.PUBLISHED : CourseStatus.DRAFT;
 
   if (!title) {
-    redirect("/teacher?error=missing-title");
+    redirect("/dashboard?section=overview");
   }
   if (title.length > 120) {
-    redirect("/teacher?error=title-too-long");
+    redirect("/dashboard?section=overview");
   }
 
   const courseCode = normalizeCode(
@@ -46,5 +46,5 @@ export async function createCourseAction(formData: FormData): Promise<void> {
     },
   });
 
-  redirect(`/teacher?created=${encodeURIComponent(course.id)}`);
+  redirect(`/dashboard?section=overview&courseId=${encodeURIComponent(course.id)}`);
 }

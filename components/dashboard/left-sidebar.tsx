@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState, useTransition } from "react";
 import { logoutAction } from "@/app/(auth)/actions";
+import {
+  createDashboardCourseAction,
+  joinDashboardCourseAction,
+} from "@/app/dashboard/actions";
+import {
+  CourseEntryDialog,
+  type CourseEntryMode,
+  type CourseEntryPayload,
+} from "@/components/dashboard/course-entry-dialog";
 import { useCourseContext } from "@/components/dashboard/course-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +57,9 @@ export function LeftSidebar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentCourseId, setCurrentCourse } = useCourseContext();
+  const [courseEntryMode, setCourseEntryMode] = useState<CourseEntryMode>(null);
+  const [courseEntryError, setCourseEntryError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const initials = (userName || userEmail).slice(0, 1).toUpperCase();
   const logoutFormRef = useRef<HTMLFormElement>(null);
   const currentCourse = courses.find((course) => course.id === currentCourseId) ?? null;
@@ -66,26 +78,56 @@ export function LeftSidebar({
   const courseMenuItems: MenuItem[] = [
     {
       key: "overview",
-      label: "Overview",
+      label: "总览",
       href: buildDashboardHref("overview", currentCourseId),
       icon: "⌂",
       disabled: !currentCourseId,
     },
     {
       key: "library",
-      label: "Library",
+      label: "资料库",
       href: buildDashboardHref("library", currentCourseId),
       icon: "◫",
       disabled: !currentCourseId,
     },
     {
       key: "ai-assistant",
-      label: "AI Assistant",
-      href: currentCourseId ? `/chat?courseId=${currentCourseId}` : "/chat",
+      label: "AI 助手",
+      href: buildDashboardHref("ai", currentCourseId),
       icon: "✦",
       disabled: !currentCourseId,
     },
   ];
+
+  const handleCourseEntry = (payload: CourseEntryPayload) => {
+    setCourseEntryError(null);
+    startTransition(async () => {
+      const result =
+        payload.mode === "create"
+          ? await createDashboardCourseAction({
+              title: payload.title,
+              description: payload.description,
+              status: payload.status,
+            })
+          : await joinDashboardCourseAction({
+              courseCode: payload.courseCode,
+            });
+
+      if (!result.success) {
+        setCourseEntryError(result.error);
+        return;
+      }
+
+      const nextCourseId = result.data?.courseId ?? null;
+      if (nextCourseId) {
+        setCurrentCourse(nextCourseId);
+        router.push(buildDashboardHref("overview", nextCourseId));
+      } else {
+        router.refresh();
+      }
+      setCourseEntryMode(null);
+    });
+  };
 
   return (
     <>
@@ -122,10 +164,10 @@ export function LeftSidebar({
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-[rgba(0,0,0,0.95)]">
-                          {currentCourse?.title ?? "No Course Selected"}
+                          {currentCourse?.title ?? "未选择课程"}
                         </p>
                         <p className="truncate text-xs text-[#615d59]">
-                          {currentCourse?.courseCode ?? "Please create or join a course"}
+                          {currentCourse?.courseCode ?? "请先创建或加入课程"}
                         </p>
                       </div>
                     </div>
@@ -133,7 +175,7 @@ export function LeftSidebar({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64">
-                  <DropdownMenuLabel>Courses</DropdownMenuLabel>
+                  <DropdownMenuLabel>课程列表</DropdownMenuLabel>
                   {courses.length > 0 ? (
                     courses.map((course) => (
                       <DropdownMenuItem
@@ -161,13 +203,16 @@ export function LeftSidebar({
                       </DropdownMenuItem>
                     ))
                   ) : (
-                    <DropdownMenuItem disabled>No courses yet</DropdownMenuItem>
+                    <DropdownMenuItem disabled>暂无课程</DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href={userRole === "TEACHER" ? "/teacher" : "/student"}>
-                      {userRole === "TEACHER" ? "Create Course" : "Join Course"}
-                    </Link>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setCourseEntryError(null);
+                      setCourseEntryMode(userRole === "TEACHER" ? "create" : "join");
+                    }}
+                  >
+                    {userRole === "TEACHER" ? "创建课程" : "加入课程"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -193,19 +238,16 @@ export function LeftSidebar({
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="h-8 w-8 px-0 text-xs cursor-pointer"
+                        className="h-8 w-8 cursor-pointer px-0 text-xs"
                         aria-label="打开用户菜单"
                       >
                         ↕
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Account</DropdownMenuLabel>
+                      <DropdownMenuLabel>账户</DropdownMenuLabel>
                       <DropdownMenuItem asChild>
-                        <Link href="/dashboard">Settings</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/chat">AI Assistant</Link>
+                        <Link href="/dashboard">设置</Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -214,7 +256,7 @@ export function LeftSidebar({
                           logoutFormRef.current?.requestSubmit();
                         }}
                       >
-                        Logout
+                        退出登录
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -236,14 +278,14 @@ export function LeftSidebar({
           <div className="flex-1 overflow-y-auto px-2 py-3">
             <div className="mb-2 px-2.5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#615d59]">
-                {currentCourse ? `${currentCourse.title} menu` : "Course menu"}
+                {currentCourse ? `${currentCourse.title} 菜单` : "课程菜单"}
               </p>
             </div>
             <nav className="space-y-1">
               {courseMenuItems.map((item) => {
                 const active =
                   item.key === "ai-assistant"
-                    ? pathname.startsWith("/chat")
+                    ? pathname === "/dashboard" && currentSection === "ai"
                     : item.key === "library"
                       ? pathname === "/dashboard" &&
                         (currentSection === "library" ||
@@ -284,21 +326,39 @@ export function LeftSidebar({
                 }`}
               >
                 <span className="inline-flex h-5 w-5 items-center justify-center text-sm">?</span>
-                {isOpen ? <span className="ml-2">Help</span> : null}
+                {isOpen ? <span className="ml-2">帮助</span> : null}
               </Button>
               <Button
                 variant="ghost"
                 className={`w-full rounded-xl transition-colors hover:bg-[#f4f3f2] ${
                   isOpen ? "justify-start" : "justify-center px-0"
                 }`}
+                onClick={() => {
+                  setCourseEntryError(null);
+                  setCourseEntryMode(userRole === "TEACHER" ? "create" : "join");
+                }}
               >
                 <span className="inline-flex h-5 w-5 items-center justify-center text-sm">+</span>
-                {isOpen ? <span className="ml-2">New</span> : null}
+                {isOpen ? <span className="ml-2">{userRole === "TEACHER" ? "新建课程" : "加入课程"}</span> : null}
               </Button>
             </div>
           </div>
         </div>
       </aside>
+
+      <CourseEntryDialog
+        open={Boolean(courseEntryMode)}
+        mode={courseEntryMode}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCourseEntryMode(null);
+            setCourseEntryError(null);
+          }
+        }}
+        onSubmit={handleCourseEntry}
+        pending={isPending}
+        error={courseEntryError}
+      />
     </>
   );
 }

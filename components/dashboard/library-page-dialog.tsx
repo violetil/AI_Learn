@@ -43,7 +43,7 @@ function LibraryDialogHeader({
           ⋯
         </Button>
         <Button variant="ghost" size="sm" onClick={onClose} className="h-8 rounded-full px-3">
-          Close
+          关闭
         </Button>
       </div>
     </header>
@@ -136,10 +136,10 @@ function StudentAssignmentBody({
           <article className="space-y-2 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
             <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)]">AI 评语摘要</p>
             <ul className="space-y-1.5 text-sm leading-6 text-[#615d59]">
-              <li>Score：{item.aiReview?.scoreSuggestion ?? "-"} / 100</li>
-              <li>Strengths：{item.aiReview?.strengths?.join("；") || "暂无"}</li>
-              <li>Weaknesses：{item.aiReview?.issues?.join("；") || "暂无"}</li>
-              <li>Suggestions：{item.aiReview?.suggestions?.join("；") || "暂无"}</li>
+              <li>建议分：{item.aiReview?.scoreSuggestion ?? "-"} / 100</li>
+              <li>优点：{item.aiReview?.strengths?.join("；") || "暂无"}</li>
+              <li>问题：{item.aiReview?.issues?.join("；") || "暂无"}</li>
+              <li>建议：{item.aiReview?.suggestions?.join("；") || "暂无"}</li>
             </ul>
           </article>
           <article className="space-y-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-5 text-sm leading-8 text-[rgba(0,0,0,0.9)]">
@@ -241,7 +241,7 @@ function TeacherAssignmentBody({
             <p className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">AI 初评</p>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f8f7f6] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Score</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">建议分</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight text-[rgba(0,0,0,0.9)]">
                 {item.aiReview?.scoreSuggestion ?? "-"} / 100
               </p>
@@ -249,7 +249,7 @@ function TeacherAssignmentBody({
             </article>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Strengths</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">优点</p>
               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#615d59]">
                 {(item.aiReview?.strengths?.length ? item.aiReview.strengths : ["暂无"]).map((text) => (
                   <li key={text}>{text}</li>
@@ -258,7 +258,7 @@ function TeacherAssignmentBody({
             </article>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Weaknesses</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">问题点</p>
               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#615d59]">
                 {(item.aiReview?.issues?.length ? item.aiReview.issues : ["暂无"]).map((text) => (
                   <li key={text}>{text}</li>
@@ -267,7 +267,7 @@ function TeacherAssignmentBody({
             </article>
 
             <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">Suggestions</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[#7a746f]">改进建议</p>
               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-[#615d59]">
                 {(item.aiReview?.suggestions?.length ? item.aiReview.suggestions : ["暂无"]).map((text) => (
                   <li key={text}>{text}</li>

@@ -8,14 +8,14 @@ export function LandingHero({
   isLoggedIn: boolean;
 }) {
   const primaryHref = isLoggedIn ? "/dashboard" : "/register";
-  const primaryText = isLoggedIn ? "Start Learning" : "Get Started";
+  const primaryText = isLoggedIn ? "进入学习工作台" : "立即开始";
 
   return (
     <section className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-28 sm:px-6 sm:pt-32 lg:pb-24">
       <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
           <p className="mb-4 inline-flex rounded-full border border-[rgba(0,0,0,0.1)] bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] text-[#615d59]">
-            AI EDUCATION PLATFORM
+            AI 教育平台
           </p>
           <h1 className="max-w-[16ch] text-4xl font-bold leading-[1.1] tracking-[-0.02em] text-[rgba(0,0,0,0.95)] sm:text-5xl">
             AI 辅助学习与智能作业批改，一体化完成学习闭环
@@ -28,7 +28,7 @@ export function LandingHero({
               <Link href={primaryHref}>{primaryText}</Link>
             </Button>
             <Button asChild size="lg" variant="secondary">
-              <Link href="/chat">Learn More</Link>
+              <Link href="/dashboard">了解更多</Link>
             </Button>
           </div>
         </div>

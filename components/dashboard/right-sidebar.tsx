@@ -9,7 +9,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardChatData } from "@/lib/dashboard-data";
@@ -99,7 +98,7 @@ export function RightSidebar({
         <div className="border-b border-[rgba(0,0,0,0.08)] px-3 py-3">
           <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">AI Assistant</p>
+              <p className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">AI 助手</p>
               <p className="truncate text-xs text-[#615d59]">
                 {currentCourseTitle ?? "未选择课程"}
               </p>
@@ -109,13 +108,13 @@ export function RightSidebar({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="secondary" size="sm" className="h-8 rounded-lg text-xs">
-                      History
+                      历史会话
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Recent Chats</DropdownMenuLabel>
+                    <DropdownMenuLabel>最近会话</DropdownMenuLabel>
                     {sessions.length === 0 ? (
-                      <DropdownMenuItem disabled>No chat history</DropdownMenuItem>
+                      <DropdownMenuItem disabled>暂无历史会话</DropdownMenuItem>
                     ) : (
                       sessions.map((session) => (
                         <DropdownMenuItem
@@ -130,12 +129,6 @@ export function RightSidebar({
                         </DropdownMenuItem>
                       ))
                     )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <a href={currentCourseId ? `/chat?courseId=${currentCourseId}` : "/chat"}>
-                        View Fullscreen
-                      </a>
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : null}
@@ -165,7 +158,7 @@ export function RightSidebar({
                   });
                 }}
               >
-                New Chat
+                新会话
               </Button>
               <Button
                 variant="secondary"
@@ -213,7 +206,7 @@ export function RightSidebar({
           ) : (
             <div className="flex h-full items-center justify-center">
               <div className="w-full rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white p-6 text-center shadow-[0_6px_16px_rgba(0,0,0,0.04)]">
-                <p className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">AI Chat Unavailable</p>
+                <p className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">AI 聊天不可用</p>
                 <p className="mt-2 text-sm leading-6 text-[#615d59]">请选择课程后再使用 AI</p>
               </div>
             </div>
@@ -230,8 +223,8 @@ export function RightSidebar({
             <Input
               placeholder={
                 currentCourseTitle
-                  ? "Ask AI anything about your course..."
-                  : "Select a course to start AI chat..."
+                  ? "输入课程相关问题，按 Enter 发送..."
+                  : "请先选择课程后再开始对话..."
               }
               value={input}
               onChange={(event) => setInput(event.target.value)}

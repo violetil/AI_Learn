@@ -33,9 +33,9 @@ export function CreateLibraryItemDialog({
   const [link, setLink] = useState("");
 
   const title = useMemo(() => {
-    if (mode === "assignment") return "New Assignment";
-    if (mode === "material") return "New Material";
-    return "Create";
+    if (mode === "assignment") return "新建作业";
+    if (mode === "material") return "新建资料";
+    return "新建";
   }, [mode]);
 
   const isAssignment = mode === "assignment";
@@ -59,7 +59,7 @@ export function CreateLibraryItemDialog({
     >
       <DialogContent className="max-w-2xl overflow-hidden p-0">
         <DialogTitle className="sr-only">{title}</DialogTitle>
-        <DialogDescription className="sr-only">Create a new library item</DialogDescription>
+        <DialogDescription className="sr-only">新建课程资料或作业</DialogDescription>
 
         <div className="flex flex-col">
           <header className="border-b border-[rgba(0,0,0,0.06)] px-8 py-5">
@@ -121,7 +121,7 @@ export function CreateLibraryItemDialog({
 
           <footer className="flex items-center justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] px-8 py-4">
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              Cancel
+              取消
             </Button>
             <Button
               disabled={!canSubmit}
@@ -137,7 +137,7 @@ export function CreateLibraryItemDialog({
                 onOpenChange(false);
               }}
             >
-              {pending ? "Creating..." : "Create"}
+              {pending ? "创建中..." : "创建"}
             </Button>
           </footer>
         </div>

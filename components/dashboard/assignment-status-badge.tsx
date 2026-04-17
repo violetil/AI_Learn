@@ -7,6 +7,13 @@ const STATUS_STYLE: Record<AssignmentDisplayStatus, string> = {
   Graded: "bg-[#eef8f2] text-[#4f7a61]",
 };
 
+const STATUS_LABEL: Record<AssignmentDisplayStatus, string> = {
+  "Not Started": "未开始",
+  Submitted: "已提交",
+  Ungraded: "未批改",
+  Graded: "已批改",
+};
+
 export function AssignmentStatusBadge({
   status,
 }: {
@@ -16,7 +23,7 @@ export function AssignmentStatusBadge({
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${STATUS_STYLE[status]}`}
     >
-      {status}
+      {STATUS_LABEL[status]}
     </span>
   );
 }

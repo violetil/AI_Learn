@@ -74,7 +74,7 @@ export default async function DashboardPage({
 
   return (
     <DashboardLayout
-      userName={user.name?.trim() || user.email.split("@")[0] || "User"}
+      userName={user.name?.trim() || user.email.split("@")[0] || "用户"}
       userEmail={user.email}
       userRole={user.role}
       courses={courses}

@@ -18,7 +18,7 @@ export function LandingHowItWorks() {
     <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
       <div className="mb-10">
         <h2 className="text-3xl font-bold tracking-[-0.01em] text-[rgba(0,0,0,0.95)] sm:text-4xl">
-          How it works
+          使用流程
         </h2>
       </div>
       <div className="grid gap-4 md:grid-cols-3">

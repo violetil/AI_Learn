@@ -17,15 +17,15 @@ export function LandingHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
         <nav className="flex items-center gap-2">
           {isLoggedIn ? (
             <Button asChild>
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/dashboard">进入工作台</Link>
             </Button>
           ) : (
             <>
               <Button asChild variant="ghost">
-                <Link href="/login">Login</Link>
+                <Link href="/login">登录</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="/register">Register</Link>
+                <Link href="/register">注册</Link>
               </Button>
             </>
           )}

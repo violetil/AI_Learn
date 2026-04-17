@@ -20,9 +20,9 @@ import { LibraryTableRow } from "@/components/dashboard/library-table-row";
 import type { LibraryItem, LibraryTab } from "@/components/dashboard/library-types";
 
 const TAB_OPTIONS: Array<{ id: LibraryTab; label: string }> = [
-  { id: "recents", label: "Recents" },
-  { id: "materials", label: "Materials" },
-  { id: "assignments", label: "Assignments" },
+  { id: "recents", label: "最近访问" },
+  { id: "materials", label: "资料" },
+  { id: "assignments", label: "作业" },
 ];
 
 export function CourseLibraryPage({
@@ -75,7 +75,7 @@ export function CourseLibraryPage({
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-[2rem] font-bold tracking-[-0.02em] text-[rgba(0,0,0,0.95)]">Library</h2>
+          <h2 className="text-[2rem] font-bold tracking-[-0.02em] text-[rgba(0,0,0,0.95)]">资料库</h2>
           <p className="text-xs text-[#615d59]">{courseTitle}</p>
         </div>
 
@@ -84,15 +84,15 @@ export function CourseLibraryPage({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="sm" className="h-7 rounded-full px-3 text-xs">
-                  + New
+                  + 新建
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => setCreateMode("assignment")}>
-                  New Assignment
+                  新建作业
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setCreateMode("material")}>
-                  New Material
+                  新建资料
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

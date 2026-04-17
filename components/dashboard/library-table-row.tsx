@@ -67,7 +67,7 @@ export function LibraryTableRow({
             }}
             className="rounded-md px-2 py-1 text-xs text-[#615d59] opacity-0 transition-all duration-150 hover:bg-[#f4f3f2] hover:text-[rgba(0,0,0,0.95)] group-hover:opacity-100"
           >
-            Edit
+            编辑
           </button>
           <button
             type="button"
@@ -77,7 +77,7 @@ export function LibraryTableRow({
             }}
             className="rounded-md px-2 py-1 text-xs text-[#8a847f] opacity-0 transition-all duration-150 hover:bg-[#f4f3f2] hover:text-[#6f6964] group-hover:opacity-100"
           >
-            Delete
+            删除
           </button>
         </div>
       ) : null}
