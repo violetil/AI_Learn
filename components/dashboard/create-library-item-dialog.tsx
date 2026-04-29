@@ -9,7 +9,9 @@ type CreateMode = "assignment" | "material" | null;
 type CreatePayload = {
   mode: Exclude<CreateMode, null>;
   name: string;
-  description: string;
+  description?: string;
+  question?: string;
+  content?: string;
   dueDate?: string;
   link?: string;
 };
@@ -29,6 +31,8 @@ export function CreateLibraryItemDialog({
 }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [question, setQuestion] = useState("");
+  const [content, setContent] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [link, setLink] = useState("");
 
@@ -41,7 +45,10 @@ export function CreateLibraryItemDialog({
   const isAssignment = mode === "assignment";
   const isMaterial = mode === "material";
   const canSubmit = Boolean(
-    !pending && mode && name.trim().length > 0 && description.trim().length > 0,
+    !pending &&
+      mode &&
+      name.trim().length > 0 &&
+      (isAssignment ? question.trim().length > 0 : description.trim().length > 0),
   );
 
   return (
@@ -51,6 +58,8 @@ export function CreateLibraryItemDialog({
         if (!nextOpen) {
           setName("");
           setDescription("");
+          setQuestion("");
+          setContent("");
           setDueDate("");
           setLink("");
         }
@@ -68,8 +77,8 @@ export function CreateLibraryItemDialog({
             </h3>
             <p className="mt-1 text-sm text-[#7a746f]">
               {isAssignment
-                ? "创建一项作业并设置截止时间。"
-                : "创建一份学习资料，支持文本说明与链接。"}
+                ? "请填写作业标题、问题与截止时间。"
+                : "请填写资料标题、摘要，并补充内容或外链。"}
             </p>
           </header>
 
@@ -84,38 +93,59 @@ export function CreateLibraryItemDialog({
               />
             </label>
 
-            <label className="block space-y-1">
-              <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">描述</span>
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                className="min-h-28 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-sm leading-7 outline-none focus:ring-2 focus:ring-[#097fe8]"
-                placeholder="输入简要说明"
-              />
-            </label>
-
             {isAssignment ? (
-              <label className="block space-y-1">
-                <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">截止时间</span>
-                <input
-                  value={dueDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  className="h-10 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#097fe8]"
-                  placeholder="例如：5 月 10 日"
-                />
-              </label>
+              <>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">问题</span>
+                  <textarea
+                    value={question}
+                    onChange={(event) => setQuestion(event.target.value)}
+                    className="min-h-28 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-sm leading-7 outline-none focus:ring-2 focus:ring-[#097fe8]"
+                    placeholder="描述学生需要完成的任务与要求"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">截止时间</span>
+                  <input
+                    type="datetime-local"
+                    value={dueDate}
+                    onChange={(event) => setDueDate(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#097fe8]"
+                  />
+                </label>
+              </>
             ) : null}
 
             {isMaterial ? (
-              <label className="block space-y-1">
-                <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">资料链接（可选）</span>
-                <input
-                  value={link}
-                  onChange={(event) => setLink(event.target.value)}
-                  className="h-10 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#097fe8]"
-                  placeholder="https://..."
-                />
-              </label>
+              <>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">摘要</span>
+                  <textarea
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    className="min-h-20 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-sm leading-7 outline-none focus:ring-2 focus:ring-[#097fe8]"
+                    placeholder="一句话说明这份资料适用于什么学习场景"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">资料内容</span>
+                  <textarea
+                    value={content}
+                    onChange={(event) => setContent(event.target.value)}
+                    className="min-h-24 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-sm leading-7 outline-none focus:ring-2 focus:ring-[#097fe8]"
+                    placeholder="可填写关键知识点、阅读说明或使用方式"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-medium text-[rgba(0,0,0,0.9)]">资料链接（可选）</span>
+                  <input
+                    value={link}
+                    onChange={(event) => setLink(event.target.value)}
+                    className="h-10 w-full rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#097fe8]"
+                    placeholder="https://..."
+                  />
+                </label>
+              </>
             ) : null}
           </section>
 
@@ -130,7 +160,9 @@ export function CreateLibraryItemDialog({
                 onCreate({
                   mode,
                   name: name.trim(),
-                  description: description.trim(),
+                  description: description.trim() || undefined,
+                  question: question.trim() || undefined,
+                  content: content.trim() || undefined,
                   dueDate: dueDate.trim() || undefined,
                   link: link.trim() || undefined,
                 });

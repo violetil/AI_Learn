@@ -64,26 +64,36 @@ function LibraryDialogMeta({ item }: { item: LibraryItem }) {
 }
 
 function LibraryDialogBody({ item }: { item: LibraryItem }) {
+  const materialText = item.materialContent || item.description;
+  const materialLink = item.materialUrl;
+
   return (
     <section className="flex-1 space-y-6 overflow-y-auto px-8 py-6 text-[15px] leading-8 text-[rgba(0,0,0,0.9)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
       <article className="space-y-2">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">核心内容</h3>
-        <p className="text-[16px] leading-8 text-[rgba(0,0,0,0.92)]">{item.description}</p>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">资料摘要</h3>
+        <p className="text-[16px] leading-8 text-[rgba(0,0,0,0.92)]">{item.description || "暂无摘要"}</p>
       </article>
 
       <article className="space-y-2">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">详细说明</h3>
-        <p className="text-[#615d59]">
-          这是一个 Notion 风格的页面弹出层预览区域。后续可以在这里渲染富文本编辑器内容、学习资料详情或作业说明正文。
-        </p>
-      </article>
-
-      <article className="space-y-2">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">附件 / 链接</h3>
-        <div className="rounded-xl bg-[#f8f7f6] p-4 text-sm text-[#6f6964]">
-          支持展示 PDF、外链与文件元数据（当前为占位区）。
+        <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">资料内容</h3>
+        <div className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4 text-sm leading-7 text-[#615d59]">
+          {materialText || "暂无正文内容。"}
         </div>
       </article>
+
+      {materialLink ? (
+        <article className="space-y-2">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">资料链接</h3>
+          <a
+            href={materialLink}
+            target="_blank"
+            rel="noreferrer"
+            className="block rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f8f7f6] px-4 py-3 text-sm text-[#097fe8] underline-offset-2 hover:underline"
+          >
+            {materialLink}
+          </a>
+        </article>
+      ) : null}
     </section>
   );
 }
@@ -126,25 +136,44 @@ function StudentAssignmentBody({
 
   if (status === "Graded") {
     return (
-      <section className="flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <div className="space-y-6 px-8 py-6">
-          <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#eef8f2] p-4">
-            <p className="text-sm font-medium text-[rgba(0,0,0,0.92)]">评分结果</p>
-            <p className="mt-2 text-2xl font-semibold text-[rgba(0,0,0,0.9)]">88 / 100</p>
-            <p className="mt-1 text-sm text-[#5f6f64]">教师已完成评分，可根据反馈继续优化。</p>
-          </article>
-          <article className="space-y-2 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
-            <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)]">AI 评语摘要</p>
-            <ul className="space-y-1.5 text-sm leading-6 text-[#615d59]">
-              <li>建议分：{item.aiReview?.scoreSuggestion ?? "-"} / 100</li>
-              <li>优点：{item.aiReview?.strengths?.join("；") || "暂无"}</li>
-              <li>问题：{item.aiReview?.issues?.join("；") || "暂无"}</li>
-              <li>建议：{item.aiReview?.suggestions?.join("；") || "暂无"}</li>
-            </ul>
-          </article>
-          <article className="space-y-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-5 text-sm leading-8 text-[rgba(0,0,0,0.9)]">
-            <p>{item.submissionAnswer || "暂无提交内容。"}</p>
-          </article>
+      <section className="flex-1 overflow-hidden px-8 py-6">
+        <div className="grid h-full gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(18rem,3fr)]">
+          <div className="space-y-6 overflow-y-auto pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <article className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">作业问题</h3>
+              <div className="rounded-xl bg-[#f8f7f6] p-4 text-sm leading-7 text-[rgba(0,0,0,0.9)]">
+                {item.question || item.description || "暂无作业问题"}
+              </div>
+            </article>
+            <article className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">我的回答</h3>
+              <div className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-5 text-sm leading-8 text-[rgba(0,0,0,0.9)]">
+                <p>{item.submissionAnswer || "暂无提交内容。"}</p>
+              </div>
+            </article>
+          </div>
+          <aside className="space-y-4 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <article className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#eef8f2] p-4">
+              <p className="text-sm font-medium text-[rgba(0,0,0,0.92)]">评分结果</p>
+              <p className="mt-2 text-2xl font-semibold text-[rgba(0,0,0,0.9)]">
+                {(item.teacherReviewScore ?? item.aiReview?.scoreSuggestion ?? "-")} / 100
+              </p>
+              <p className="mt-1 text-sm text-[#5f6f64]">教师已完成评分，可根据反馈继续优化。</p>
+            </article>
+            <article className="space-y-2 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
+              <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)]">教师反馈</p>
+              <p className="text-sm leading-7 text-[#615d59]">{item.teacherReviewComment || "暂无文字反馈"}</p>
+            </article>
+            <article className="space-y-2 rounded-xl border border-[rgba(0,0,0,0.06)] bg-white p-4">
+              <p className="text-sm font-semibold text-[rgba(0,0,0,0.9)]">AI 评语摘要</p>
+              <ul className="space-y-1.5 text-sm leading-6 text-[#615d59]">
+                <li>建议分：{item.aiReview?.scoreSuggestion ?? "-"} / 100</li>
+                <li>优点：{item.aiReview?.strengths?.join("；") || "暂无"}</li>
+                <li>问题：{item.aiReview?.issues?.join("；") || "暂无"}</li>
+                <li>建议：{item.aiReview?.suggestions?.join("；") || "暂无"}</li>
+              </ul>
+            </article>
+          </aside>
         </div>
         <footer className="sticky bottom-0 z-10 flex items-center justify-between border-t border-[rgba(0,0,0,0.06)] bg-white/95 px-8 py-4 backdrop-blur-sm">
           <p className="text-xs text-[#8a847f]">已评分，当前为只读模式。</p>
@@ -159,20 +188,7 @@ function StudentAssignmentBody({
       <div className="space-y-8 px-8 py-6">
         <article className="prose prose-sm max-w-none text-[rgba(0,0,0,0.9)]">
           <h3 className="!mb-3 !text-base !font-semibold !text-[rgba(0,0,0,0.95)]">题目说明</h3>
-          <p>
-            请结合本课程内容，完成对“AI 在学习场景中的应用”的分析。你需要说明核心观点、给出至少两个案例，并提出可执行的改进建议。
-          </p>
-          <ul>
-            <li>使用课程术语，确保概念准确。</li>
-            <li>分析不低于 500 字。</li>
-            <li>引用资料请在文中标注来源。</li>
-          </ul>
-          <p className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f8f7f6] p-3 text-sm text-[#615d59]">
-            附图示例区域（当前已接入真实作业提交，展示图由后续附件系统提供）。
-          </p>
-          <p className="rounded-xl bg-[#f8f7f6] p-3 text-sm text-[#615d59]">
-            附件：课程资料《学习分析框架.pdf》 · 参考链接：https://example.com
-          </p>
+          <p>{item.question || item.description || "请根据老师发布的问题完成作业。"}</p>
         </article>
 
         <article className="space-y-3">
@@ -210,21 +226,21 @@ function TeacherAssignmentBody({
 }: {
   item: LibraryItem;
   studentStatus: StudentAssignmentStatus;
-  onReview: (status: "APPROVED" | "REJECTED", comment: string) => void;
+  onReview: (status: "APPROVED" | "REJECTED", comment: string, score: number | null) => void;
 }) {
-  const [score, setScore] = useState(String(item.aiReview?.scoreSuggestion ?? 86));
-  const [comment, setComment] = useState(
-    item.teacherReviewComment || "论证结构清晰，建议补充更多案例对比。",
-  );
+  const [score, setScore] = useState(String(item.teacherReviewScore ?? item.aiReview?.scoreSuggestion ?? 86));
+  const [comment, setComment] = useState(item.teacherReviewComment || "");
+  const parsedScore = score.trim().length > 0 ? Number.parseInt(score, 10) : null;
+  const reviewScore = parsedScore !== null && !Number.isNaN(parsedScore) ? parsedScore : null;
 
   return (
-    <section className="flex-1 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-      <div className="grid gap-6 px-8 py-6 lg:grid-cols-[minmax(0,7fr)_minmax(18rem,3fr)]">
-        <div className="space-y-6">
+    <section className="flex-1 overflow-hidden px-8 py-6">
+      <div className="grid h-full gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(18rem,3fr)]">
+        <div className="space-y-6 overflow-y-auto pr-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <article className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">题目</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.06em] text-[#7a746f]">作业问题</h3>
             <div className="rounded-xl bg-[#f8f7f6] p-4 text-sm leading-7 text-[rgba(0,0,0,0.9)]">
-              请结合课程内容分析 AI 在学习场景中的应用，并说明其优势、潜在问题以及可执行的优化建议。
+              {item.question || item.description || "暂无作业问题"}
             </div>
           </article>
 
@@ -236,7 +252,7 @@ function TeacherAssignmentBody({
           </article>
         </div>
 
-        <aside className="h-fit space-y-4 lg:sticky lg:top-0">
+        <aside className="space-y-4 overflow-y-auto pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <section className="space-y-3">
             <p className="text-sm font-semibold text-[rgba(0,0,0,0.95)]">AI 初评</p>
 
@@ -304,10 +320,17 @@ function TeacherAssignmentBody({
             <p className="text-sm text-[#615d59]">
               当前：{studentStatus === "Graded" ? "已批改" : "未批改"}
             </p>
-            <Button className="w-full" onClick={() => onReview("APPROVED", `${comment}\n最终分数：${score}`)}>
+            <Button
+              className="w-full"
+              onClick={() => onReview("APPROVED", comment, reviewScore)}
+            >
               标记为已批改
             </Button>
-            <Button variant="secondary" className="w-full" onClick={() => onReview("REJECTED", comment)}>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => onReview("REJECTED", comment, reviewScore)}
+            >
               驳回并退回学生
             </Button>
           </section>
@@ -376,7 +399,7 @@ export function LibraryPageDialog({
                 key={item.id}
                 item={item}
                 studentStatus={assignmentStatus}
-                onReview={(status, comment) => {
+                onReview={(status, comment, score) => {
                   const recordId = item.submissionRecordId;
                   if (!recordId) {
                     setActionError("当前没有可批改的提交记录。");
@@ -389,6 +412,7 @@ export function LibraryPageDialog({
                       assignmentId: item.id,
                       recordId,
                       status,
+                      score: score ?? undefined,
                       comment,
                     });
                     if (!result.success) {

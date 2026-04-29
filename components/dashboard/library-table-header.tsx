@@ -8,8 +8,8 @@ export function LibraryTableHeader({ tab }: { tab: LibraryTab }) {
       <span>名称</span>
       <span>课程</span>
       <span>创建者</span>
-      <span>{showAssignmentColumns ? "状态" : "-"}</span>
-      <span>{showAssignmentColumns ? "截止日期" : "-"}</span>
+      <span>{showAssignmentColumns ? "状态" : "资料类型"}</span>
+      <span>{showAssignmentColumns ? "截止日期" : "适用说明"}</span>
       <span>最后编辑</span>
       <span className="text-right">操作</span>
     </div>

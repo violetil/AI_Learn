@@ -1,6 +1,7 @@
 import { MessageRole } from "../node_modules/.prisma/client/default";
 import { generateAssistantReply } from "@/lib/ai";
 import { takeAiTurn } from "@/lib/ai-rate-limit";
+import { resolveDefaultChatModel } from "@/lib/ai-models";
 import { logStructured } from "@/lib/app-log";
 import { prismaCourseToPayload } from "./chat-course-context";
 import { canAccessCourseChat } from "@/lib/course-access";
@@ -71,8 +72,9 @@ export async function appendUserMessageAndGetAssistantReply(
   });
 
   let reply: string;
+  const model = session.model?.trim() || resolveDefaultChatModel();
   try {
-    reply = await generateAssistantReply(history, { courseContext });
+    reply = await generateAssistantReply(history, { courseContext, model });
   } catch (e) {
     await prisma.chatMessage.delete({ where: { id: userRow.id } });
     logStructured("ai_chat_reply_failed", {
@@ -98,7 +100,7 @@ export async function appendUserMessageAndGetAssistantReply(
     where: { id: sessionId },
     data: {
       title: session.title?.trim() ? session.title : content.slice(0, 40),
-      model: session.model ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      model,
     },
   });
 

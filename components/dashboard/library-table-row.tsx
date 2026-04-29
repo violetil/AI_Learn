@@ -47,14 +47,14 @@ export function LibraryTableRow({
           {showAssignmentColumns && item.type === "assignment" && item.status ? (
             <AssignmentStatusBadge status={getAssignmentStatusForRole(item.status, userRole)} />
           ) : (
-            "-"
+            "资料"
           )}
         </span>
         <span className="truncate text-[13px] text-[#7a746f]">
-          {showAssignmentColumns ? item.dueDate ?? "-" : "-"}
+          {showAssignmentColumns ? item.dueDate ?? "-" : item.description || "-"}
         </span>
         <span className="truncate text-[13px] text-[#7a746f]">{item.lastEdited}</span>
-      <span className="text-right text-[13px] text-[#7a746f]">{showRowActions ? "" : "-"}</span>
+        <span className="text-right text-[13px] text-[#7a746f]">{showRowActions ? "" : "-"}</span>
       </button>
 
       {showRowActions ? (

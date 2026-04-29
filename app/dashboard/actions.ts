@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { CourseMemberRole, CourseStatus, MaterialKind, StudyRecordType } from "@prisma/client";
+import {
+  CourseMemberRole,
+  CourseStatus,
+  MaterialKind,
+  ReviewStatus,
+  StudyRecordType,
+} from "@prisma/client";
 import { generateAssignmentInitialReview } from "@/lib/ai";
 import { requireRole, requireSessionUser } from "@/lib/authz";
 import { getStudentCourseMembership, getTeacherOwnedCourse } from "@/lib/course-access";
@@ -98,7 +104,9 @@ const createLibrarySchema = z.object({
   courseId: z.string().trim().min(1),
   mode: z.enum(["assignment", "material"]),
   name: z.string().trim().min(1).max(120),
-  description: z.string().trim().min(1).max(3000),
+  description: z.string().trim().max(1000).optional(),
+  question: z.string().trim().max(4000).optional(),
+  content: z.string().trim().max(8000).optional(),
   dueDate: z.string().trim().optional(),
   link: z.string().trim().url().optional(),
 });
@@ -112,13 +120,16 @@ export async function createDashboardLibraryItemAction(
     return { success: false, error: "参数无效，请检查输入。" };
   }
 
-  const { courseId, mode, name, description, dueDate, link } = parsed.data;
+  const { courseId, mode, name, description, question, content, dueDate, link } = parsed.data;
   const course = await getTeacherOwnedCourse(user.id, courseId);
   if (!course) {
     return { success: false, error: "你没有该课程的管理权限。" };
   }
 
   if (mode === "assignment") {
+    if (!question || question.trim().length === 0) {
+      return { success: false, error: "请填写作业问题。" };
+    }
     const dueAt = dueDate ? new Date(dueDate) : null;
     if (dueDate && Number.isNaN(dueAt?.getTime())) {
       return { success: false, error: "截止日期格式无效。" };
@@ -129,7 +140,8 @@ export async function createDashboardLibraryItemAction(
         courseId,
         creatorId: user.id,
         title: name,
-        description,
+        question,
+        description: description || null,
         dueAt,
         published: true,
       },
@@ -139,8 +151,9 @@ export async function createDashboardLibraryItemAction(
       data: {
         courseId,
         title: name,
-        description,
-        content: link || null,
+        description: description || null,
+        content: content || null,
+        url: link || null,
         kind: link ? MaterialKind.LINK : MaterialKind.DOCUMENT,
       },
     });
@@ -177,7 +190,7 @@ export async function submitDashboardAssignmentAction(
       courseId,
       published: true,
     },
-    select: { id: true, title: true, description: true },
+    select: { id: true, title: true, question: true, description: true },
   });
   if (!assignment) {
     return { success: false, error: "作业不存在或尚未发布。" };
@@ -186,7 +199,7 @@ export async function submitDashboardAssignmentAction(
   const aiResult = await generateAssignmentInitialReview({
     courseTitle: membership.course.title,
     assignmentTitle: assignment.title,
-    assignmentDescription: assignment.description,
+    assignmentDescription: assignment.question || assignment.description,
     answer,
   });
 
@@ -223,6 +236,7 @@ const reviewSchema = z.object({
   assignmentId: z.string().trim().min(1),
   recordId: z.string().trim().min(1),
   status: z.enum(["APPROVED", "REJECTED"]),
+  score: z.number().int().min(0).max(100).optional(),
   comment: z.string().trim().max(2000).optional(),
 });
 
@@ -235,7 +249,7 @@ export async function reviewDashboardAssignmentAction(
     return { success: false, error: "批改参数无效。" };
   }
 
-  const { courseId, assignmentId, recordId, status, comment } = parsed.data;
+  const { courseId, assignmentId, recordId, status, score, comment } = parsed.data;
   const course = await getTeacherOwnedCourse(user.id, courseId);
   if (!course) {
     return { success: false, error: "你没有该课程的管理权限。" };
@@ -262,11 +276,17 @@ export async function reviewDashboardAssignmentAction(
   await prisma.studyRecord.update({
     where: { id: record.id },
     data: {
+      reviewStatus: status === "APPROVED" ? ReviewStatus.APPROVED : ReviewStatus.REJECTED,
+      reviewComment: comment || null,
+      reviewScore: typeof score === "number" ? score : null,
+      reviewedAt: new Date(),
+      reviewerId: user.id,
       meta: {
         ...existingMeta,
         teacherReview: {
           status,
           comment: comment || null,
+          score: typeof score === "number" ? score : null,
           reviewedAt: new Date().toISOString(),
           reviewerId: user.id,
         },

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { ReviewStatus } from "@prisma/client";
 import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
@@ -13,12 +14,19 @@ export async function reviewAssignmentSubmissionAction(formData: FormData): Prom
   const assignmentId = String(formData.get("assignmentId") ?? "").trim();
   const recordId = String(formData.get("recordId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim() as TeacherReviewStatus;
+  const scoreRaw = String(formData.get("score") ?? "").trim();
   const comment = String(formData.get("comment") ?? "").trim();
 
   if (!courseId || !assignmentId || !recordId) {
     redirect("/dashboard?section=library");
   }
   if (status !== "APPROVED" && status !== "REJECTED") {
+    redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
+  }
+  const score = scoreRaw ? Number.parseInt(scoreRaw, 10) : null;
+  const isInvalidScore =
+    scoreRaw && (score === null || Number.isNaN(score) || score < 0 || score > 100);
+  if (isInvalidScore) {
     redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
   }
 
@@ -48,11 +56,17 @@ export async function reviewAssignmentSubmissionAction(formData: FormData): Prom
   await prisma.studyRecord.update({
     where: { id: record.id },
     data: {
+      reviewStatus: status === "APPROVED" ? ReviewStatus.APPROVED : ReviewStatus.REJECTED,
+      reviewComment: comment || null,
+      reviewScore: score,
+      reviewedAt: new Date(),
+      reviewerId: user.id,
       meta: {
         ...existingMeta,
         teacherReview: {
           status,
           comment: comment || null,
+          score,
           reviewedAt: new Date().toISOString(),
           reviewerId: user.id,
         },

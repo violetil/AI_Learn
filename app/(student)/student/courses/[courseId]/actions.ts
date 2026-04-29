@@ -32,7 +32,7 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
       courseId,
       published: true,
     },
-    select: { id: true, title: true, description: true },
+    select: { id: true, title: true, question: true, description: true },
   });
   if (!assignment) {
     redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
@@ -46,7 +46,7 @@ export async function submitAssignmentAction(formData: FormData): Promise<void> 
   const aiResult = await generateAssignmentInitialReview({
     courseTitle: membership.course.title,
     assignmentTitle: assignment.title,
-    assignmentDescription: assignment.description,
+    assignmentDescription: assignment.question || assignment.description,
     answer,
   });
 

@@ -28,10 +28,15 @@ export type LibraryItem = {
   lastEdited: string;
   type: "material" | "assignment";
   description: string;
+  question?: string | null;
+  materialContent?: string | null;
+  materialUrl?: string | null;
   submissionRecordId?: string;
   submissionAnswer?: string;
   teacherReviewStatus?: "APPROVED" | "REJECTED" | null;
   teacherReviewComment?: string | null;
+  teacherReviewScore?: number | null;
+  reviewedAt?: string | null;
   aiReview?: {
     scoreSuggestion?: number | null;
     strengths?: string[];

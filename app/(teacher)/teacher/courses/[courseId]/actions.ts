@@ -15,6 +15,7 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
   const courseId = String(formData.get("courseId") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const question = String(formData.get("question") ?? "").trim();
   const dueAtRaw = String(formData.get("dueAt") ?? "").trim();
   const published = String(formData.get("published") ?? "") === "on";
 
@@ -39,6 +40,7 @@ export async function createAssignmentAction(formData: FormData): Promise<void> 
       courseId,
       creatorId: user.id,
       title,
+      question: question || description || null,
       description: description || null,
       dueAt,
       published,

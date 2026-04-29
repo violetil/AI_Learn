@@ -4,12 +4,14 @@
  */
 import type { CourseContextPayload } from "@/lib/course-context";
 import { buildCourseGroundedSystemPrompt } from "@/lib/course-context";
+import { resolveDefaultChatModel } from "@/lib/ai-models";
 
 export type ChatTurn = { role: "user" | "assistant" | "system"; content: string };
 
 export type GenerateAssistantOptions = {
   /** 有值时启用「课程 grounded」模式：首条为强约束 system，再拼接对话历史 */
   courseContext?: CourseContextPayload | null;
+  model?: string | null;
 };
 
 export type AssignmentInitialReview = {
@@ -65,7 +67,7 @@ export async function generateAssistantReply(
 
   const baseUrl =
     process.env.OPENAI_BASE_URL?.replace(/\/$/, "") ?? "https://api.openai.com/v1";
-  const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  const model = options?.model?.trim() || resolveDefaultChatModel();
 
   const messages = buildMessagesForApi(history, options);
 

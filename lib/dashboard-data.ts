@@ -1,4 +1,5 @@
 import type { LibraryItem, StudentAssignmentStatus, UserRole } from "@/components/dashboard/library-types";
+import { resolveDefaultChatModel } from "@/lib/ai-models";
 import { prisma } from "@/lib/db";
 
 type OverviewCard = {
@@ -25,11 +26,14 @@ type DashboardChatMessage = {
 type DashboardChatSession = {
   id: string;
   title: string;
+  model: string;
   updatedAtLabel: string;
 };
 
 type DashboardChatData = {
   sessionId: string;
+  activeModel: string;
+  contextMaterialCount: number;
   sessions: DashboardChatSession[];
   initialMessages: DashboardChatMessage[];
 };
@@ -49,9 +53,10 @@ function formatShortDate(date: Date | null | undefined): string {
 }
 
 function mapStudentStatusFromRecord(
-  record: { meta: unknown } | null,
+  record: { meta: unknown; reviewStatus: "APPROVED" | "REJECTED" | null } | null,
 ): StudentAssignmentStatus {
   if (!record) return "Not Started";
+  if (record.reviewStatus) return "Graded";
   if (
     record.meta &&
     typeof record.meta === "object" &&
@@ -115,6 +120,15 @@ function parseMeta(meta: unknown): {
   };
 }
 
+function parseReviewScore(reviewComment: string | null): number | null {
+  if (!reviewComment) return null;
+  const match = reviewComment.match(/最终分数[：:]\s*(\d{1,3})/);
+  if (!match) return null;
+  const score = Number.parseInt(match[1], 10);
+  if (Number.isNaN(score)) return null;
+  return Math.min(100, Math.max(0, score));
+}
+
 export async function getDashboardCourseData({
   userId,
   userRole,
@@ -165,6 +179,17 @@ export async function getDashboardCourseData({
         ...(userRole === "STUDENT" ? { userId } : {}),
       },
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        assignmentId: true,
+        note: true,
+        meta: true,
+        reviewStatus: true,
+        reviewComment: true,
+        reviewScore: true,
+        reviewedAt: true,
+        createdAt: true,
+      },
     }),
     prisma.studyRecord.findMany({
       where: {
@@ -173,7 +198,16 @@ export async function getDashboardCourseData({
       },
       orderBy: { createdAt: "desc" },
       take: 30,
-      include: {
+      select: {
+        id: true,
+        assignmentId: true,
+        note: true,
+        meta: true,
+        reviewStatus: true,
+        reviewComment: true,
+        reviewScore: true,
+        reviewedAt: true,
+        createdAt: true,
         assignment: { select: { id: true, title: true } },
       },
     }),
@@ -214,6 +248,8 @@ export async function getDashboardCourseData({
     lastEdited: material.updatedAt.toLocaleDateString(),
     type: "material",
     description: material.description || material.content || material.url || "暂无描述",
+    materialContent: material.content,
+    materialUrl: material.url,
   }));
 
   const libraryAssignmentItems: LibraryItem[] = assignments.map((assignment) => {
@@ -225,7 +261,7 @@ export async function getDashboardCourseData({
     const status =
       userRole === "STUDENT"
         ? mapStudentStatusFromRecord(submission)
-        : submission && parsed.teacherReviewStatus
+        : submission && (submission.reviewStatus || parsed.teacherReviewStatus)
           ? "Graded"
           : "Not Started";
 
@@ -241,11 +277,14 @@ export async function getDashboardCourseData({
       dueDate: formatShortDate(assignment.dueAt),
       lastEdited: assignment.updatedAt.toLocaleDateString(),
       type: "assignment",
-      description: assignment.description || "暂无作业描述",
+      description: assignment.description || assignment.question || "暂无作业说明",
+      question: assignment.question || assignment.description,
       submissionRecordId: submission?.id,
       submissionAnswer: submission?.note || "",
-      teacherReviewStatus: parsed.teacherReviewStatus,
-      teacherReviewComment: parsed.teacherReviewComment,
+      teacherReviewStatus: submission?.reviewStatus || parsed.teacherReviewStatus,
+      teacherReviewComment: submission?.reviewComment || parsed.teacherReviewComment,
+      teacherReviewScore: submission?.reviewScore ?? parseReviewScore(parsed.teacherReviewComment),
+      reviewedAt: submission?.reviewedAt ? submission.reviewedAt.toISOString() : null,
       aiReview: parsed.aiReview,
     };
   });
@@ -269,7 +308,7 @@ export async function getDashboardCourseData({
   const overviewAssignments: OverviewCard[] = assignments.slice(0, 6).map((assignment) => ({
     id: `a-${assignment.id}`,
     title: assignment.title,
-    subtitle: assignment.description || "完成后可获得 AI 初评与教师反馈。",
+    subtitle: assignment.question || assignment.description || "完成后可获得 AI 初评与教师反馈。",
     meta: userRole === "STUDENT" ? "作业任务" : "教学任务",
     due: formatShortDate(assignment.dueAt),
   }));
@@ -292,6 +331,7 @@ export async function getDashboardCourseData({
         userId,
         courseId,
         title: course.title,
+        model: resolveDefaultChatModel(),
       },
     }));
 
@@ -309,7 +349,7 @@ export async function getDashboardCourseData({
       },
       orderBy: { updatedAt: "desc" },
       take: 20,
-      select: { id: true, title: true, updatedAt: true },
+      select: { id: true, title: true, model: true, updatedAt: true },
     }),
   ]);
 
@@ -336,9 +376,12 @@ export async function getDashboardCourseData({
     libraryItems: [...libraryMaterialItems, ...libraryAssignmentItems],
     chat: {
       sessionId: chatSession.id,
+      activeModel: chatSession.model?.trim() || resolveDefaultChatModel(),
+      contextMaterialCount: materials.length,
       sessions: chatSessions.map((session) => ({
         id: session.id,
         title: session.title?.trim() || "未命名会话",
+        model: session.model?.trim() || resolveDefaultChatModel(),
         updatedAtLabel: session.updatedAt.toLocaleString(),
       })),
       initialMessages: chatMessages.map((message) => ({

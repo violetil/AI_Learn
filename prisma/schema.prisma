@@ -168,6 +168,7 @@ model Assignment {
   courseId    String
   creatorId   String
   title       String
+  question    String?
   description String?
   dueAt       DateTime?
   published   Boolean   @default(false)
@@ -203,6 +204,11 @@ model StudyRecord {
   score       Float?
   note        String?
   meta        Json?
+  reviewStatus  ReviewStatus?
+  reviewComment String?
+  reviewScore   Int?
+  reviewedAt    DateTime?
+  reviewerId    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,6 +262,11 @@ enum StudyRecordType {
   COURSE_PROGRESS
   QUIZ
   OTHER
+}
+
+enum ReviewStatus {
+  APPROVED
+  REJECTED
 }
 
 enum UserRole {

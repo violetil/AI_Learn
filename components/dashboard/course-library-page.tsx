@@ -59,6 +59,8 @@ export function CourseLibraryPage({
         mode: payload.mode,
         name: payload.name,
         description: payload.description,
+        question: payload.question,
+        content: payload.content,
         dueDate: payload.dueDate,
         link: payload.link,
       });
