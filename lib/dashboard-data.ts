@@ -42,6 +42,22 @@ type DashboardCourseData = {
   overview: DashboardOverviewData;
   libraryItems: LibraryItem[];
   chat: DashboardChatData | null;
+  learningAnalytics: DashboardLearningAnalytics | null;
+};
+
+type SummaryCard = {
+  label: string;
+  value: string;
+  hint: string;
+};
+
+type DashboardLearningAnalytics = {
+  roleView: "TEACHER" | "STUDENT";
+  summaryCards: SummaryCard[];
+  trend: Array<{ day: string; minutes: number; submissions: number; aiSessions: number }>;
+  behaviorBreakdown: Array<{ name: string; value: number }>;
+  topLearners?: Array<{ name: string; minutes: number; submissions: number }>;
+  personalTimeline?: Array<{ time: string; event: string; detail: string }>;
 };
 
 function formatShortDate(date: Date | null | undefined): string {
@@ -129,6 +145,16 @@ function parseReviewScore(reviewComment: string | null): number | null {
   return Math.min(100, Math.max(0, score));
 }
 
+function formatDay(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${month}-${day}`;
+}
+
+function formatMinutes(seconds: number): string {
+  return `${Math.round(seconds / 60)} 分钟`;
+}
+
 export async function getDashboardCourseData({
   userId,
   userRole,
@@ -152,6 +178,7 @@ export async function getDashboardCourseData({
       },
       libraryItems: [],
       chat: null,
+      learningAnalytics: null,
     };
   }
 
@@ -159,7 +186,8 @@ export async function getDashboardCourseData({
   const assignmentWhere =
     userRole === "STUDENT" ? { courseId, published: true } : { courseId };
 
-  const [materials, assignments, records, submissions, recentStudyRecords] = await Promise.all([
+  const [materials, assignments, records, submissions, recentStudyRecords, studentMembers, analyticsRecords] =
+    await Promise.all([
     prisma.learningMaterial.findMany({
       where: { courseId },
       orderBy: { updatedAt: "desc" },
@@ -221,6 +249,27 @@ export async function getDashboardCourseData({
       include: {
         assignment: { select: { id: true, title: true } },
         material: { select: { id: true, title: true } },
+      },
+    }),
+    prisma.courseMember.findMany({
+      where: { courseId, role: "STUDENT" },
+      select: { userId: true, user: { select: { name: true, email: true } } },
+    }),
+    prisma.studyRecord.findMany({
+      where: {
+        courseId,
+        ...(userRole === "STUDENT" ? { userId } : {}),
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        userId: true,
+        recordType: true,
+        eventName: true,
+        source: true,
+        durationSec: true,
+        score: true,
+        note: true,
+        createdAt: true,
       },
     }),
   ]);
@@ -317,6 +366,180 @@ export async function getDashboardCourseData({
     (assignment) => assignment.dueAt && assignment.dueAt > now,
   ).length;
 
+  const studentIdSet = new Set(studentMembers.map((member) => member.userId));
+  const analyticsBaseRecords =
+    userRole === "TEACHER"
+      ? analyticsRecords.filter((record) => studentIdSet.has(record.userId))
+      : analyticsRecords;
+
+  const dayBuckets = new Map<string, { minutes: number; submissions: number; aiSessions: number }>();
+  for (const record of analyticsBaseRecords) {
+    const key = formatDay(record.createdAt);
+    const bucket = dayBuckets.get(key) ?? { minutes: 0, submissions: 0, aiSessions: 0 };
+    bucket.minutes += Math.max(0, record.durationSec ?? 0) / 60;
+    if (record.recordType === "ASSIGNMENT_SUBMIT") bucket.submissions += 1;
+    if (record.recordType === "AI_SESSION") bucket.aiSessions += 1;
+    dayBuckets.set(key, bucket);
+  }
+  const trend = Array.from(dayBuckets.entries())
+    .slice(-14)
+    .map(([day, value]) => ({
+      day,
+      minutes: Math.round(value.minutes),
+      submissions: value.submissions,
+      aiSessions: value.aiSessions,
+    }));
+
+  const behaviorBreakdown = [
+    {
+      name: "资料浏览",
+      value: analyticsBaseRecords.filter(
+        (record) => record.recordType === "MATERIAL_VIEW" || record.eventName === "material_view",
+      ).length,
+    },
+    {
+      name: "作业开始",
+      value: analyticsBaseRecords.filter(
+        (record) => record.recordType === "ASSIGNMENT_START" || record.eventName === "assignment_start",
+      ).length,
+    },
+    {
+      name: "作业提交",
+      value: analyticsBaseRecords.filter((record) => record.recordType === "ASSIGNMENT_SUBMIT").length,
+    },
+    {
+      name: "AI 使用",
+      value: analyticsBaseRecords.filter((record) => record.recordType === "AI_SESSION").length,
+    },
+  ];
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(now.getDate() - 7);
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(now.getDate() - 30);
+
+  const uniqueActive7d = new Set(
+    analyticsBaseRecords
+      .filter((record) => record.createdAt >= sevenDaysAgo)
+      .map((record) => record.userId),
+  ).size;
+  const uniqueActive30d = new Set(
+    analyticsBaseRecords
+      .filter((record) => record.createdAt >= thirtyDaysAgo)
+      .map((record) => record.userId),
+  ).size;
+
+  const totalDurationSec = analyticsBaseRecords.reduce(
+    (accumulator, record) => accumulator + Math.max(0, record.durationSec ?? 0),
+    0,
+  );
+  const scoreSamples = records
+    .map((record) => record.reviewScore)
+    .filter((score): score is number => typeof score === "number");
+  const avgScore = scoreSamples.length
+    ? Math.round(scoreSamples.reduce((sum, score) => sum + score, 0) / scoreSamples.length)
+    : null;
+
+  const learningAnalytics: DashboardLearningAnalytics =
+    userRole === "TEACHER"
+      ? {
+          roleView: "TEACHER",
+          summaryCards: [
+            {
+              label: "活跃学生（7天）",
+              value: `${uniqueActive7d}`,
+              hint: `近30天活跃 ${uniqueActive30d} 人`,
+            },
+            {
+              label: "人均学习时长",
+              value:
+                studentMembers.length > 0
+                  ? formatMinutes(Math.round(totalDurationSec / Math.max(studentMembers.length, 1)))
+                  : "0 分钟",
+              hint: "按课程内学生人数计算",
+            },
+            {
+              label: "作业提交率",
+              value: assignments.length
+                ? `${Math.round((records.length / Math.max(assignments.length * Math.max(studentMembers.length, 1), 1)) * 100)}%`
+                : "0%",
+              hint: "提交数 / (作业数*学生数)",
+            },
+            {
+              label: "平均得分",
+              value: avgScore !== null ? `${avgScore} / 100` : "-",
+              hint: "按已批改作业统计",
+            },
+          ],
+          trend,
+          behaviorBreakdown,
+          topLearners: studentMembers
+            .map((member) => {
+              const memberRecords = analyticsBaseRecords.filter((record) => record.userId === member.userId);
+              return {
+                name: member.user.name?.trim() || member.user.email,
+                minutes: Math.round(
+                  memberRecords.reduce((accumulator, record) => accumulator + Math.max(0, record.durationSec ?? 0), 0) /
+                    60,
+                ),
+                submissions: memberRecords.filter((record) => record.recordType === "ASSIGNMENT_SUBMIT").length,
+              };
+            })
+            .sort((left, right) => right.minutes - left.minutes)
+            .slice(0, 8),
+        }
+      : {
+          roleView: "STUDENT",
+          summaryCards: [
+            {
+              label: "本周学习时长",
+              value: formatMinutes(
+                analyticsBaseRecords
+                  .filter((record) => record.createdAt >= sevenDaysAgo)
+                  .reduce((accumulator, record) => accumulator + Math.max(0, record.durationSec ?? 0), 0),
+              ),
+              hint: "近 7 天累计",
+            },
+            {
+              label: "资料浏览次数",
+              value: `${behaviorBreakdown.find((item) => item.name === "资料浏览")?.value ?? 0}`,
+              hint: "累计资料访问事件",
+            },
+            {
+              label: "作业完成率",
+              value: assignments.length
+                ? `${Math.round(((behaviorBreakdown.find((item) => item.name === "作业提交")?.value ?? 0) / assignments.length) * 100)}%`
+                : "0%",
+              hint: "已提交 / 总作业数",
+            },
+            {
+              label: "AI 辅助次数",
+              value: `${behaviorBreakdown.find((item) => item.name === "AI 使用")?.value ?? 0}`,
+              hint: "课程内 AI 对话次数",
+            },
+          ],
+          trend,
+          behaviorBreakdown,
+          personalTimeline: analyticsBaseRecords
+            .slice(-15)
+            .reverse()
+            .map((record) => ({
+              time: record.createdAt.toLocaleString(),
+              event:
+                record.eventName ||
+                (record.recordType === "MATERIAL_VIEW"
+                  ? "资料浏览"
+                  : record.recordType === "ASSIGNMENT_START"
+                    ? "开始作业"
+                    : record.recordType === "ASSIGNMENT_SUBMIT"
+                      ? "提交作业"
+                      : record.recordType === "AI_SESSION"
+                        ? "AI 学习会话"
+                        : "学习行为"),
+              detail: record.note?.slice(0, 40) || "已记录学习行为",
+            })),
+        };
+
   const chatSession =
     (await prisma.chatSession.findFirst({
       where: {
@@ -395,7 +618,13 @@ export async function getDashboardCourseData({
         content: message.content,
       })),
     },
+    learningAnalytics,
   };
 }
 
-export type { DashboardCourseData, DashboardOverviewData, DashboardChatData };
+export type {
+  DashboardCourseData,
+  DashboardOverviewData,
+  DashboardChatData,
+  DashboardLearningAnalytics,
+};

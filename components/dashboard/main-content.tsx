@@ -2,6 +2,8 @@
 
 import { CourseHome } from "@/components/dashboard/course-home";
 import { CourseLibraryPage } from "@/components/dashboard/course-library-page";
+import { StudentLearningPanel } from "@/components/dashboard/learning-analytics/student-learning-panel";
+import { TeacherLearningPanel } from "@/components/dashboard/learning-analytics/teacher-learning-panel";
 import { useCourseContext } from "@/components/dashboard/course-context";
 import type { LibraryTab } from "@/components/dashboard/library-types";
 import { useSearchParams } from "next/navigation";
@@ -33,6 +35,8 @@ export function MainContent({
   const isOverview = pageSection === "overview" || pageSection === "ai" || !pageSection;
   const isLibrary =
     pageSection === "library" || pageSection === "assignments" || pageSection === "materials";
+  const isLearningSection =
+    pageSection === "learning-insights" || pageSection === "my-learning";
   const initialLibraryTab: LibraryTab =
     pageSection === "assignments"
       ? "assignments"
@@ -76,6 +80,12 @@ export function MainContent({
                 courseId={currentCourse.id}
                 initialItems={initialData.libraryItems}
               />
+            ) : currentCourse && isLearningSection ? (
+              userRole === "TEACHER" ? (
+                <TeacherLearningPanel analytics={initialData.learningAnalytics} />
+              ) : (
+                <StudentLearningPanel analytics={initialData.learningAnalytics} />
+              )
             ) : (
               <div className="space-y-4">
                 <h1 className="text-[30px] font-bold tracking-[-0.01em] text-[rgba(0,0,0,0.95)]">

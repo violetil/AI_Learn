@@ -169,6 +169,18 @@ const submitAssignmentSchema = z.object({
   answer: z.string().trim().min(1).max(8000),
 });
 
+const trackStudyEventSchema = z.object({
+  courseId: z.string().trim().min(1),
+  recordType: z.enum(["MATERIAL_VIEW", "ASSIGNMENT_START", "AI_SESSION"]),
+  eventName: z.string().trim().min(1).max(80),
+  source: z.string().trim().min(1).max(80),
+  materialId: z.string().trim().optional(),
+  assignmentId: z.string().trim().optional(),
+  progress: z.number().int().min(0).max(100).optional(),
+  durationSec: z.number().int().min(0).max(60 * 60 * 12).optional(),
+  note: z.string().trim().max(2000).optional(),
+});
+
 export async function submitDashboardAssignmentAction(
   payload: z.infer<typeof submitAssignmentSchema>,
 ): Promise<ActionResult> {
@@ -209,6 +221,8 @@ export async function submitDashboardAssignmentAction(
       courseId,
       assignmentId,
       recordType: StudyRecordType.ASSIGNMENT_SUBMIT,
+      eventName: "assignment_submit",
+      source: "library_dialog",
       note: answer,
       meta: {
         source: "dashboard-library-dialog",
@@ -228,6 +242,43 @@ export async function submitDashboardAssignmentAction(
   });
 
   revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function trackDashboardStudyEventAction(
+  payload: z.infer<typeof trackStudyEventSchema>,
+): Promise<ActionResult> {
+  const user = await requireRole("STUDENT");
+  const parsed = trackStudyEventSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { success: false, error: "学习行为参数无效。" };
+  }
+
+  const { courseId, recordType, eventName, source, materialId, assignmentId, progress, durationSec, note } =
+    parsed.data;
+  const membership = await getStudentCourseMembership(user.id, courseId);
+  if (!membership) {
+    return { success: false, error: "你尚未加入当前课程。" };
+  }
+
+  await prisma.studyRecord.create({
+    data: {
+      userId: user.id,
+      courseId,
+      materialId: materialId || null,
+      assignmentId: assignmentId || null,
+      recordType: StudyRecordType[recordType],
+      eventName,
+      source,
+      progress: typeof progress === "number" ? progress : null,
+      durationSec: typeof durationSec === "number" ? durationSec : null,
+      note: note || null,
+      meta: {
+        trackedAt: new Date().toISOString(),
+      },
+    },
+  });
+
   return { success: true };
 }
 

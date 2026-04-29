@@ -1,4 +1,4 @@
-import { MessageRole } from "../node_modules/.prisma/client/default";
+import { MessageRole, StudyRecordType } from "../node_modules/.prisma/client/default";
 import { generateAssistantReply } from "@/lib/ai";
 import { takeAiTurn } from "@/lib/ai-rate-limit";
 import { resolveDefaultChatModel } from "@/lib/ai-models";
@@ -95,6 +95,25 @@ export async function appendUserMessageAndGetAssistantReply(
       content: reply,
     },
   });
+
+  if (session.courseId) {
+    await prisma.studyRecord.create({
+      data: {
+        userId,
+        courseId: session.courseId,
+        chatSessionId: session.id,
+        recordType: StudyRecordType.AI_SESSION,
+        eventName: "ai_chat",
+        source: "ai_sidebar",
+        note: content.slice(0, 500),
+        meta: {
+          model,
+          promptLength: content.length,
+          trackedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
 
   await prisma.chatSession.update({
     where: { id: sessionId },

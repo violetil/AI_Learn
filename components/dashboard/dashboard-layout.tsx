@@ -45,6 +45,10 @@ export function DashboardLayout({
         ? "资料库"
         : section === "ai"
           ? "AI 助手"
+          : section === "learning-insights"
+            ? "学习情况"
+            : section === "my-learning"
+              ? "我的学习分析"
           : "总览";
 
   useEffect(() => {

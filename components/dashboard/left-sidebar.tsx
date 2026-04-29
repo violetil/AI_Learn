@@ -97,6 +97,13 @@ export function LeftSidebar({
       icon: "✦",
       disabled: !currentCourseId,
     },
+    {
+      key: userRole === "TEACHER" ? "learning-insights" : "my-learning",
+      label: userRole === "TEACHER" ? "学习情况" : "我的学习分析",
+      href: buildDashboardHref(userRole === "TEACHER" ? "learning-insights" : "my-learning", currentCourseId),
+      icon: "▦",
+      disabled: !currentCourseId,
+    },
   ];
 
   const handleCourseEntry = (payload: CourseEntryPayload) => {

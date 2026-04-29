@@ -16,6 +16,7 @@ const EMPTY_DATA: DashboardCourseData = {
   },
   libraryItems: [],
   chat: null,
+  learningAnalytics: null,
 };
 
 export default async function DashboardPage({

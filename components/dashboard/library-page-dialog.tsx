@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   reviewDashboardAssignmentAction,
   submitDashboardAssignmentAction,
+  trackDashboardStudyEventAction,
 } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { AssignmentStatusBadge } from "@/components/dashboard/assignment-status-badge";
@@ -354,8 +355,43 @@ export function LibraryPageDialog({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
+  const trackedEventKeyRef = useRef<string | null>(null);
   const assignmentStatus: StudentAssignmentStatus =
     item?.type === "assignment" && item.status ? item.status : "Not Started";
+
+  useEffect(() => {
+    if (!open || !item || userRole !== "STUDENT") return;
+    const eventKey =
+      item.type === "material"
+        ? `material:${item.id}`
+        : assignmentStatus === "Not Started"
+          ? `assignment-start:${item.id}`
+          : null;
+    if (!eventKey || trackedEventKeyRef.current === eventKey) return;
+    trackedEventKeyRef.current = eventKey;
+
+    startTransition(async () => {
+      if (item.type === "material") {
+        await trackDashboardStudyEventAction({
+          courseId: item.courseId,
+          recordType: "MATERIAL_VIEW",
+          eventName: "material_view",
+          source: "library_dialog",
+          materialId: item.id,
+          progress: 15,
+        });
+      } else if (assignmentStatus === "Not Started") {
+        await trackDashboardStudyEventAction({
+          courseId: item.courseId,
+          recordType: "ASSIGNMENT_START",
+          eventName: "assignment_start",
+          source: "library_dialog",
+          assignmentId: item.id,
+          progress: 5,
+        });
+      }
+    });
+  }, [assignmentStatus, item, open, userRole]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

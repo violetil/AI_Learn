@@ -202,6 +202,10 @@ model StudyRecord {
   progress    Int?
   /// 成绩或评分，可选
   score       Float?
+  /// 细粒度行为事件名，如 material_view / assignment_start / ai_chat
+  eventName   String?
+  /// 事件来源，如 library_dialog / ai_sidebar
+  source      String?
   note        String?
   meta        Json?
   reviewStatus  ReviewStatus?
