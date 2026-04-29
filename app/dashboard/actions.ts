@@ -13,6 +13,7 @@ import { generateAssignmentInitialReview } from "@/lib/ai";
 import { requireRole, requireSessionUser } from "@/lib/authz";
 import { getStudentCourseMembership, getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
+import { syncMaterialKnowledgeIndex } from "@/lib/rag-index-material";
 
 type ActionResult =
   | { success: true; data?: { courseId?: string } }
@@ -147,7 +148,7 @@ export async function createDashboardLibraryItemAction(
       },
     });
   } else {
-    await prisma.learningMaterial.create({
+    const material = await prisma.learningMaterial.create({
       data: {
         courseId,
         title: name,
@@ -157,6 +158,7 @@ export async function createDashboardLibraryItemAction(
         kind: link ? MaterialKind.LINK : MaterialKind.DOCUMENT,
       },
     });
+    await syncMaterialKnowledgeIndex(material.id);
   }
 
   revalidatePath("/dashboard");

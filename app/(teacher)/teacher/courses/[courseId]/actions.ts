@@ -8,6 +8,7 @@ import { MaterialKind } from "../../../../../node_modules/.prisma/client/default
 import { requireRole } from "@/lib/authz";
 import { getTeacherOwnedCourse } from "@/lib/course-access";
 import { prisma } from "@/lib/db";
+import { syncMaterialKnowledgeIndex } from "@/lib/rag-index-material";
 
 export async function createAssignmentAction(formData: FormData): Promise<void> {
   const user = await requireRole("TEACHER");
@@ -94,7 +95,7 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
     finalKind = MaterialKind.FILE;
   }
 
-  await prisma.learningMaterial.create({
+  const material = await prisma.learningMaterial.create({
     data: {
       courseId,
       title,
@@ -104,6 +105,8 @@ export async function createMaterialAction(formData: FormData): Promise<void> {
       content: content || null,
     },
   });
+
+  await syncMaterialKnowledgeIndex(material.id);
 
   redirect(`/dashboard?section=library&courseId=${encodeURIComponent(courseId)}`);
 }

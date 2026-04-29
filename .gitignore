@@ -46,4 +46,6 @@ next-env.d.ts
 /prisma/*.db
 /prisma/*.db-journal
 
+/data/
+
 log.md

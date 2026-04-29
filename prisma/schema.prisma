@@ -109,6 +109,7 @@ model LearningCourse {
   owner        User               @relation("CourseOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members      CourseMember[]
   materials    LearningMaterial[]
+  knowledgeChunks CourseKnowledgeChunk[]
   assignments  Assignment[]
   chatSessions ChatSession[]
   studyRecords StudyRecord[]
@@ -157,9 +158,30 @@ model LearningMaterial {
 
   course   LearningCourse? @relation(fields: [courseId], references: [id], onDelete: Cascade)
   records  StudyRecord[]
+  knowledgeChunks CourseKnowledgeChunk[]
 
   @@index([courseId, position])
   @@map("learning_material")
+}
+
+/// 课程资料分块（正文存 SQLite；向量存 LanceDB，通过 chunk id 关联）
+model CourseKnowledgeChunk {
+  id         String @id @default(cuid())
+  courseId   String
+  materialId String?
+  sourceKind String @default("material")
+  chunkIndex Int
+  content    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course   LearningCourse    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  material LearningMaterial? @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, chunkIndex])
+  @@index([courseId])
+  @@map("course_knowledge_chunk")
 }
 
 /// 作业（从属于课程，由某用户创建/发布）

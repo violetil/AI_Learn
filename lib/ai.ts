@@ -4,6 +4,13 @@
  */
 import type { CourseContextPayload } from "@/lib/course-context";
 import { buildCourseGroundedSystemPrompt } from "@/lib/course-context";
+import {
+  buildOrchestratedCourseSystemPrompt,
+  type CourseChatOrchestration,
+} from "@/lib/chat-prompt-orchestrator";
+
+export type { CourseChatOrchestration } from "@/lib/chat-prompt-orchestrator";
+import { describeRagSummary } from "@/lib/chat-rag-retrieval";
 import { resolveDefaultChatModel } from "@/lib/ai-models";
 
 export type ChatTurn = { role: "user" | "assistant" | "system"; content: string };
@@ -11,6 +18,8 @@ export type ChatTurn = { role: "user" | "assistant" | "system"; content: string 
 export type GenerateAssistantOptions = {
   /** 有值时启用「课程 grounded」模式：首条为强约束 system，再拼接对话历史 */
   courseContext?: CourseContextPayload | null;
+  /** 课程编排（RAG + 学生状态）；有 courseContext 时应传入 */
+  orchestration?: CourseChatOrchestration | null;
   model?: string | null;
 };
 
@@ -36,9 +45,20 @@ function buildMessagesForApi(
   const out: { role: string; content: string }[] = [];
 
   if (options?.courseContext) {
+    const sys =
+      options.orchestration != null
+        ? buildOrchestratedCourseSystemPrompt({
+            ctx: options.courseContext,
+            viewerRole: options.orchestration.viewerRole,
+            ragSnippets: options.orchestration.ragSnippets,
+            studentStateSummary: options.orchestration.studentStateSummary,
+            teacherCourseSummary: options.orchestration.teacherCourseSummary,
+            ragMode: options.orchestration.ragMode,
+          })
+        : buildCourseGroundedSystemPrompt(options.courseContext);
     out.push({
       role: "system",
-      content: buildCourseGroundedSystemPrompt(options.courseContext),
+      content: sys,
     });
   }
 
@@ -59,7 +79,11 @@ export async function generateAssistantReply(
 
   if (!key?.trim()) {
     if (courseMode && options?.courseContext) {
-      const preview = formatDemoCourseReply(options.courseContext, lastUser);
+      const preview = formatDemoCourseReply(
+        options.courseContext,
+        lastUser,
+        options.orchestration ?? undefined,
+      );
       return `[演示模式] 未配置 OPENAI_API_KEY。\n\n${preview}`;
     }
     return `[演示模式] 未配置 OPENAI_API_KEY。你刚才说：「${lastUser.slice(0, 500)}」`;
@@ -71,6 +95,12 @@ export async function generateAssistantReply(
 
   const messages = buildMessagesForApi(history, options);
 
+  let temperature = courseMode ? 0.35 : 0.7;
+  if (courseMode && options?.orchestration) {
+    temperature =
+      options.orchestration.viewerRole === "TEACHER" ? 0.28 : 0.42;
+  }
+
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -80,7 +110,7 @@ export async function generateAssistantReply(
     body: JSON.stringify({
       model,
       messages,
-      temperature: courseMode ? 0.35 : 0.7,
+      temperature,
     }),
   });
 
@@ -192,9 +222,20 @@ export async function generateAssignmentInitialReview(input: {
 function formatDemoCourseReply(
   ctx: CourseContextPayload,
   userSnippet: string,
+  orchestration?: CourseChatOrchestration,
 ): string {
   const titles = ctx.materials.map((m) => m.title).join("、") || "（无资料条目）";
-  return `（以下为未调用真实模型时的示例输出，逻辑上仍应「围绕课程」）\n\n课程：「${ctx.courseTitle}」\n可用资料标题：${titles}\n\n针对你的问题摘要：「${userSnippet.slice(0, 200)}」\n请配置 OPENAI_API_KEY 后由模型基于上方 system 中的全文资料作答。`;
+  const ragHint =
+    orchestration &&
+    describeRagSummary(ctx, {
+      ragMode: orchestration.ragMode,
+      snippets: orchestration.ragSnippets,
+      retrievalChunkIds: orchestration.ragSnippets.map((s) => s.chunkId),
+    });
+  const orch =
+    orchestration &&
+    `编排：角色=${orchestration.viewerRole}，ragMode=${orchestration.ragMode}，个人概况=${orchestration.studentStateSummary ? "有" : "无"}，班级概况=${orchestration.teacherCourseSummary ? "有" : "无"}。`;
+  return `（以下为未调用真实模型时的示例输出，逻辑上仍应「围绕课程」）\n\n课程：「${ctx.courseTitle}」\n可用资料标题：${titles}\n${ragHint ? `${ragHint}\n` : ""}${orch ? `${orch}\n` : ""}\n针对你的问题摘要：「${userSnippet.slice(0, 200)}」\n请配置 OPENAI_API_KEY 后由模型基于上方 system 中的编排内容作答。`;
 }
 
 function parseReviewFromJsonText(text: string): AssignmentInitialReview {

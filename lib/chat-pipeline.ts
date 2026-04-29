@@ -1,10 +1,20 @@
-import { MessageRole, StudyRecordType } from "../node_modules/.prisma/client/default";
+import {
+  MessageRole,
+  StudyRecordType,
+  UserRole,
+} from "../node_modules/.prisma/client/default";
 import { generateAssistantReply } from "@/lib/ai";
 import { takeAiTurn } from "@/lib/ai-rate-limit";
 import { resolveDefaultChatModel } from "@/lib/ai-models";
 import { logStructured } from "@/lib/app-log";
 import { prismaCourseToPayload } from "./chat-course-context";
+import type { CourseChatViewerRole } from "@/lib/chat-prompt-orchestrator";
+import type { CourseRagRetrievalResult } from "@/lib/chat-rag-retrieval";
+import { retrieveCourseKnowledgeForChat } from "@/lib/chat-rag-retrieval";
 import { canAccessCourseChat } from "@/lib/course-access";
+import { CHAT_PROMPT_VERSION } from "@/lib/rag-config";
+import { buildStudentChatStateSummary } from "@/lib/student-state-summary";
+import { buildTeacherCourseChatSummary } from "@/lib/teacher-course-chat-summary";
 import { prisma } from "@/lib/db";
 
 function toOpenAIRole(
@@ -63,6 +73,57 @@ export async function appendUserMessageAndGetAssistantReply(
       }).then((course) => (course ? prismaCourseToPayload(course) : null))
     : null;
 
+  let retrieval: CourseRagRetrievalResult = {
+    ragMode: "fallback",
+    snippets: [],
+    retrievalChunkIds: [],
+  };
+  let studentStateSummary: string | null = null;
+  let teacherCourseSummary: string | null = null;
+
+  const chatUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (session.courseId && courseContext) {
+    retrieval = await retrieveCourseKnowledgeForChat({
+      courseId: session.courseId,
+      userQuestion: content,
+    });
+    if (chatUser) {
+      if (chatUser.role === UserRole.STUDENT) {
+        studentStateSummary = await buildStudentChatStateSummary({
+          userId,
+          courseId: session.courseId,
+          role: chatUser.role,
+        });
+      } else if (chatUser.role === UserRole.TEACHER) {
+        teacherCourseSummary = await buildTeacherCourseChatSummary({
+          userId,
+          courseId: session.courseId,
+          role: chatUser.role,
+        });
+      }
+    }
+  }
+
+  const viewerRole: CourseChatViewerRole =
+    chatUser?.role === UserRole.TEACHER ? "TEACHER" : "STUDENT";
+
+  const orchestration =
+    courseContext != null && chatUser
+      ? {
+          viewerRole,
+          ragSnippets: retrieval.snippets,
+          ragMode: retrieval.ragMode,
+          studentStateSummary:
+            chatUser.role === UserRole.STUDENT ? studentStateSummary : null,
+          teacherCourseSummary:
+            chatUser.role === UserRole.TEACHER ? teacherCourseSummary : null,
+        }
+      : undefined;
+
   const userRow = await prisma.chatMessage.create({
     data: {
       sessionId,
@@ -74,7 +135,11 @@ export async function appendUserMessageAndGetAssistantReply(
   let reply: string;
   const model = session.model?.trim() || resolveDefaultChatModel();
   try {
-    reply = await generateAssistantReply(history, { courseContext, model });
+    reply = await generateAssistantReply(history, {
+      courseContext,
+      orchestration,
+      model,
+    });
   } catch (e) {
     await prisma.chatMessage.delete({ where: { id: userRow.id } });
     logStructured("ai_chat_reply_failed", {
@@ -109,6 +174,10 @@ export async function appendUserMessageAndGetAssistantReply(
         meta: {
           model,
           promptLength: content.length,
+          promptVersion: CHAT_PROMPT_VERSION,
+          viewerRole,
+          ragMode: retrieval.ragMode,
+          retrievalChunkIds: retrieval.retrievalChunkIds,
           trackedAt: new Date().toISOString(),
         },
       },
