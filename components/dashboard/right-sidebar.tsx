@@ -1,15 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useCourseContext } from "@/components/dashboard/course-context";
 import { SUPPORTED_CHAT_MODELS } from "@/lib/ai-models";
+import { consumeChatSseStream } from "@/lib/chat-stream-client";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { DashboardChatData } from "@/lib/dashboard-data";
@@ -49,6 +66,25 @@ export function RightSidebar({
     initialData?.contextMaterialCount ?? 0,
   );
   const [chatError, setChatError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [renameInput, setRenameInput] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  /** null = 未在流式输出；非 null 为当前累积文本（含空串表示已开始、尚无 token） */
+  const [streamingText, setStreamingText] = useState<string | null>(null);
+  /** 流式期间在服务端已写入用户句、尚未 refetch 前，在本地展示刚发送的内容 */
+  const [pendingUserText, setPendingUserText] = useState<string | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
+
   const currentCourse = courses.find((course) => course.id === currentCourseId) ?? null;
   const currentCourseTitle = currentCourse?.title ?? null;
   const canChat = Boolean(currentCourseId && currentCourseTitle);
@@ -61,6 +97,30 @@ export function RightSidebar({
     const active = sessions.find((session) => session.id === sessionId);
     return active?.model || activeModel;
   }, [activeModel, sessionId, sessions]);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (scrollRafRef.current != null) {
+      cancelAnimationFrame(scrollRafRef.current);
+    }
+    scrollRafRef.current = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+      scrollRafRef.current = null;
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollToBottom();
+  }, [messages, streamingText, pendingUserText, sessionId, scrollToBottom]);
+
+  useLayoutEffect(() => {
+    if (isOpen) scrollToBottom();
+  }, [isOpen, scrollToBottom]);
+
+  useEffect(() => {
+    if (renameTarget) setRenameInput(renameTarget.title);
+  }, [renameTarget]);
 
   const fetchSidebarChatData = async (nextSessionId?: string) => {
     if (!currentCourseId) return;
@@ -101,6 +161,8 @@ export function RightSidebar({
       setActiveModel("gpt-4o-mini");
       setContextMaterialCount(0);
       setChatError(null);
+      setStreamingText(null);
+      setIsSendingMessage(false);
       return;
     }
     startTransition(async () => {
@@ -108,6 +170,92 @@ export function RightSidebar({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentCourseId]);
+
+  const sendStreamingMessage = async (raw: string) => {
+    const text = raw.trim();
+    if (!sessionId || !text || isSendingMessage) return;
+    setChatError(null);
+    setIsSendingMessage(true);
+    setStreamingText("");
+    setPendingUserText(text);
+    try {
+      const response = await fetch("/api/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, sessionId }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { success?: boolean; error?: string }
+          | null;
+        setChatError(payload?.error ?? `请求失败 (${response.status})`);
+        setPendingUserText(null);
+        await fetchSidebarChatData(sessionId);
+        return;
+      }
+      const result = await consumeChatSseStream(response, (delta) => {
+        setStreamingText((prev) => (prev ?? "") + delta);
+      });
+      if (!result.ok) {
+        setChatError(result.error);
+      }
+      setPendingUserText(null);
+      await fetchSidebarChatData(sessionId);
+    } catch (e) {
+      setChatError(e instanceof Error ? e.message : "发送失败");
+      await fetchSidebarChatData(sessionId);
+    } finally {
+      setStreamingText(null);
+      setIsSendingMessage(false);
+      setPendingUserText(null);
+    }
+  };
+
+  const applyRename = async () => {
+    if (!renameTarget || !currentCourseId) return;
+    const title = renameInput.trim();
+    if (!title) return;
+    const response = await fetch("/api/dashboard/chat", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseId: currentCourseId,
+        sessionId: renameTarget.id,
+        title,
+      }),
+    });
+    const payload = (await response.json()) as
+      | { success: true }
+      | { success: false; error: string };
+    if (!payload.success) {
+      setChatError(payload.error);
+      return;
+    }
+    setRenameTarget(null);
+    await fetchSidebarChatData(sessionId);
+  };
+
+  const applyDelete = async () => {
+    if (!deleteTarget || !currentCourseId) return;
+    const response = await fetch("/api/dashboard/chat", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courseId: currentCourseId,
+        sessionId: deleteTarget.id,
+      }),
+    });
+    const payload = (await response.json()) as
+      | { success: true }
+      | { success: false; error: string };
+    if (!payload.success) {
+      setChatError(payload.error);
+      return;
+    }
+    setDeleteTarget(null);
+    setHistoryOpen(false);
+    await fetchSidebarChatData();
+  };
 
   if (!isOpen) {
     return (
@@ -134,41 +282,23 @@ export function RightSidebar({
             </div>
             <div className="flex items-center gap-1">
               {currentCourseTitle ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" className="h-8 rounded-lg text-xs">
-                      历史会话
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>最近会话</DropdownMenuLabel>
-                    {sessions.length === 0 ? (
-                      <DropdownMenuItem disabled>暂无历史会话</DropdownMenuItem>
-                    ) : (
-                      sessions.map((session) => (
-                        <DropdownMenuItem
-                          key={session.id}
-                          onSelect={() => {
-                            startTransition(async () => {
-                              await fetchSidebarChatData(session.id);
-                            });
-                          }}
-                        >
-                          <div className="flex w-full items-center justify-between gap-3">
-                            <span className="truncate">{session.title}</span>
-                            <span className="text-[11px] text-[#8a847f]">{session.model}</span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 rounded-lg text-xs"
+                  disabled={!canChat || isPending || isSendingMessage}
+                  type="button"
+                  onClick={() => setHistoryOpen(true)}
+                >
+                  历史会话
+                </Button>
               ) : null}
               <Button
                 variant="secondary"
                 size="sm"
                 className="h-8 rounded-lg text-xs"
-                disabled={!canChat || isPending}
+                disabled={!canChat || isPending || isSendingMessage}
+                type="button"
                 onClick={() => {
                   if (!currentCourseId) return;
                   startTransition(async () => {
@@ -177,7 +307,10 @@ export function RightSidebar({
                       headers: {
                         "Content-Type": "application/json",
                       },
-                      body: JSON.stringify({ courseId: currentCourseId, model: activeSessionModel }),
+                      body: JSON.stringify({
+                        courseId: currentCourseId,
+                        model: activeSessionModel,
+                      }),
                     });
                     const payload = (await response.json()) as
                       | { success: true; data: { sessionId: string } }
@@ -198,7 +331,8 @@ export function RightSidebar({
                     variant="secondary"
                     size="sm"
                     className="h-8 rounded-lg px-2 text-xs"
-                    disabled={!canChat || isPending || !sessionId}
+                    disabled={!canChat || isPending || !sessionId || isSendingMessage}
+                    type="button"
                   >
                     {activeSessionModel}
                   </Button>
@@ -214,7 +348,11 @@ export function RightSidebar({
                           const response = await fetch("/api/dashboard/chat", {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ courseId: currentCourseId, sessionId, model }),
+                            body: JSON.stringify({
+                              courseId: currentCourseId,
+                              sessionId,
+                              model,
+                            }),
                           });
                           const payload = (await response.json()) as
                             | { success: true }
@@ -238,6 +376,7 @@ export function RightSidebar({
                 className="h-8 w-8 rounded-lg px-0 text-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm"
                 onClick={toggleRightSidebar}
                 aria-label="收起右侧栏"
+                type="button"
               >
                 →
               </Button>
@@ -255,91 +394,46 @@ export function RightSidebar({
           ) : null}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-5">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-5">
           {currentCourseTitle ? (
             <div className="space-y-4">
-              <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f8f7f6] p-3 text-xs text-[#615d59]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate">{activeSessionTitle}</span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 rounded-md px-2 text-[11px]"
-                      disabled={isPending || !sessionId || !currentCourseId}
-                      onClick={() => {
-                        const title = window.prompt("请输入新的会话名称", activeSessionTitle);
-                        if (!title?.trim() || !sessionId || !currentCourseId) return;
-                        startTransition(async () => {
-                          const response = await fetch("/api/dashboard/chat", {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              courseId: currentCourseId,
-                              sessionId,
-                              title: title.trim(),
-                            }),
-                          });
-                          const payload = (await response.json()) as
-                            | { success: true }
-                            | { success: false; error: string };
-                          if (!payload.success) {
-                            setChatError(payload.error);
-                            return;
-                          }
-                          await fetchSidebarChatData(sessionId);
-                        });
-                      }}
-                    >
-                      重命名
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 rounded-md px-2 text-[11px] text-[#8f3a3a]"
-                      disabled={isPending || !sessionId || !currentCourseId}
-                      onClick={() => {
-                        if (!window.confirm("确认删除该会话及其全部消息吗？")) return;
-                        if (!sessionId || !currentCourseId) return;
-                        startTransition(async () => {
-                          const response = await fetch("/api/dashboard/chat", {
-                            method: "DELETE",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ courseId: currentCourseId, sessionId }),
-                          });
-                          const payload = (await response.json()) as
-                            | { success: true }
-                            | { success: false; error: string };
-                          if (!payload.success) {
-                            setChatError(payload.error);
-                            return;
-                          }
-                          await fetchSidebarChatData();
-                        });
-                      }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                </div>
+              <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f8f7f6] px-3 py-2 text-xs text-[#615d59]">
+                <span className="font-medium text-[rgba(0,0,0,0.85)]">当前会话：</span>
+                <span className="truncate">{activeSessionTitle}</span>
               </div>
-              {messages.length === 0 ? (
+              {messages.length === 0 &&
+              streamingText === null &&
+              pendingUserText === null ? (
                 <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] p-4 text-xs leading-6 text-[#615d59] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
                   暂无消息，开始与当前课程 AI 助手对话。
                 </div>
               ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`rounded-xl border p-4 text-xs leading-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] ${
-                      message.role === "USER"
-                        ? "border-[rgba(9,127,232,0.16)] bg-[#f2f9ff] text-[#305874]"
-                        : "border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] text-[#615d59]"
-                    }`}
-                  >
-                    {message.content}
-                  </div>
-                ))
+                <>
+                  {pendingUserText ? (
+                    <div className="rounded-xl border border-[rgba(9,127,232,0.16)] bg-[#f2f9ff] p-4 text-xs leading-6 text-[#305874] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                      {pendingUserText}
+                    </div>
+                  ) : null}
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`rounded-xl border p-4 text-xs leading-6 shadow-[0_2px_8px_rgba(0,0,0,0.02)] ${
+                        message.role === "USER"
+                          ? "border-[rgba(9,127,232,0.16)] bg-[#f2f9ff] text-[#305874]"
+                          : "border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] text-[#615d59]"
+                      }`}
+                    >
+                      {message.content}
+                    </div>
+                  ))}
+                  {streamingText !== null ? (
+                    <div className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f7f6f5] p-4 text-xs leading-6 text-[#615d59] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                      {streamingText.length > 0
+                        ? streamingText
+                        : "正在生成回复…"}
+                    </div>
+                  ) : null}
+                </>
               )}
             </div>
           ) : (
@@ -358,6 +452,9 @@ export function RightSidebar({
         ) : null}
 
         <div className="border-t border-[rgba(0,0,0,0.08)] bg-white px-3 py-3">
+          {isSendingMessage ? (
+            <p className="mb-2 text-center text-[11px] text-[#8a847f]">AI 正在回复…</p>
+          ) : null}
           <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white p-2 shadow-[0_8px_20px_rgba(0,0,0,0.06),0_2px_6px_rgba(0,0,0,0.03)]">
             <Input
               placeholder={
@@ -368,37 +465,181 @@ export function RightSidebar({
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
+                if (event.key !== "Enter" || event.shiftKey) return;
                 event.preventDefault();
-                if (!sessionId || !input.trim()) return;
-                startTransition(async () => {
-                  const response = await fetch("/api/chat", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      message: input.trim(),
-                      sessionId,
-                    }),
-                  });
-                  const payload = (await response.json()) as
-                    | { success: true }
-                    | { success: false; error: string };
-                  if (!payload.success) {
-                    setChatError(payload.error);
-                    return;
-                  }
-                  setInput("");
-                  await fetchSidebarChatData(sessionId);
-                });
+                if (!sessionId || !input.trim() || isSendingMessage) return;
+                const text = input.trim();
+                setInput("");
+                void sendStreamingMessage(text);
               }}
-              disabled={!currentCourseTitle || isPending || !sessionId}
+              disabled={!currentCourseTitle || isSendingMessage || !sessionId}
               className="h-10 rounded-xl border-0 px-2 focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>
       </div>
+
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="flex max-h-[min(70vh,32rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+          <div className="border-b border-[rgba(0,0,0,0.08)] px-4 py-3">
+            <DialogTitle className="text-base font-semibold text-[rgba(0,0,0,0.95)]">
+              最近会话
+            </DialogTitle>
+            <p className="mt-1 text-xs text-[#615d59]">点击标题切换会话；⋯ 中可重命名或删除。</p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {sessions.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-[#615d59]">暂无历史会话</p>
+            ) : (
+              <ul className="divide-y divide-[rgba(0,0,0,0.08)]">
+                {sessions.map((session) => (
+                  <li key={session.id} className="flex items-stretch gap-1">
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 px-3 py-3 text-left text-sm text-[rgba(0,0,0,0.95)] transition-colors hover:bg-[#f6f5f4]"
+                      onClick={() => {
+                        void (async () => {
+                          await fetchSidebarChatData(session.id);
+                          setHistoryOpen(false);
+                        })();
+                      }}
+                    >
+                      <span className="line-clamp-2 font-medium">{session.title}</span>
+                      <span className="mt-0.5 block text-[11px] text-[#8a847f]">
+                        {session.model} · {session.updatedAtLabel}
+                      </span>
+                    </button>
+                    <div className="flex shrink-0 items-center pr-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 w-9 shrink-0 rounded-lg px-0 text-base text-[#615d59] hover:bg-[#eceae8]"
+                            aria-label="会话操作"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            ⋯
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setHistoryOpen(false);
+                              setRenameTarget({
+                                id: session.id,
+                                title: session.title,
+                              });
+                            }}
+                          >
+                            重命名
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-[#8f3a3a] focus:text-[#8f3a3a]"
+                            onSelect={() => {
+                              setHistoryOpen(false);
+                              setDeleteTarget({
+                                id: session.id,
+                                title: session.title,
+                              });
+                            }}
+                          >
+                            删除
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="border-t border-[rgba(0,0,0,0.08)] px-3 py-2 text-right">
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" size="sm" className="rounded-lg text-xs">
+                关闭
+              </Button>
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={renameTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRenameTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md rounded-2xl border border-[rgba(0,0,0,0.08)] sm:max-w-md">
+          <DialogTitle className="text-base font-semibold">重命名会话</DialogTitle>
+          <div className="mt-3 space-y-2">
+            <Label htmlFor="chat-rename-input" className="text-xs text-[#615d59]">
+              会话标题
+            </Label>
+            <Input
+              id="chat-rename-input"
+              value={renameInput}
+              onChange={(e) => setRenameInput(e.target.value)}
+              maxLength={80}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setRenameTarget(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-lg"
+              onClick={() => void applyRename()}
+            >
+              保存
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md rounded-2xl border border-[rgba(0,0,0,0.08)] sm:max-w-md">
+          <DialogTitle className="text-base font-semibold">删除会话</DialogTitle>
+          <p className="mt-2 text-sm leading-6 text-[#615d59]">
+            确定删除「{deleteTarget?.title ?? ""}」及其全部消息吗？此操作不可撤销。
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setDeleteTarget(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-lg bg-[#8f3a3a] text-white hover:bg-[#7a3232]"
+              onClick={() => void applyDelete()}
+            >
+              删除
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

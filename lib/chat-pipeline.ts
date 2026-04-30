@@ -3,14 +3,16 @@ import {
   StudyRecordType,
   UserRole,
 } from "../node_modules/.prisma/client/default";
-import { generateAssistantReply } from "@/lib/ai";
+import type { ChatTurn } from "@/lib/ai";
+import { generateAssistantReply, streamAssistantReply } from "@/lib/ai";
 import { takeAiTurn } from "@/lib/ai-rate-limit";
 import { resolveDefaultChatModel } from "@/lib/ai-models";
 import { logStructured } from "@/lib/app-log";
 import { prismaCourseToPayload } from "./chat-course-context";
-import type { CourseChatViewerRole } from "@/lib/chat-prompt-orchestrator";
+import type { CourseChatOrchestration, CourseChatViewerRole } from "@/lib/chat-prompt-orchestrator";
 import type { CourseRagRetrievalResult } from "@/lib/chat-rag-retrieval";
 import { retrieveCourseKnowledgeForChat } from "@/lib/chat-rag-retrieval";
+import type { CourseContextPayload } from "@/lib/course-context";
 import { canAccessCourseChat } from "@/lib/course-access";
 import { CHAT_PROMPT_VERSION } from "@/lib/rag-config";
 import { buildStudentChatStateSummary } from "@/lib/student-state-summary";
@@ -25,15 +27,31 @@ function toOpenAIRole(
   return "system";
 }
 
-/**
- * 在已校验归属的会话中追加一条用户消息并生成助手回复（含课程上下文时走 grounded prompt）。
- * 供 Server Action 与 Route Handler 复用。
- */
-export async function appendUserMessageAndGetAssistantReply(
+type LoadedTurnContext =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      session: {
+        id: string;
+        userId: string;
+        courseId: string | null;
+        title: string | null;
+        model: string | null;
+      };
+      history: ChatTurn[];
+      courseContext: CourseContextPayload | null;
+      orchestration: CourseChatOrchestration | undefined;
+      model: string;
+      retrieval: CourseRagRetrievalResult;
+      viewerRole: CourseChatViewerRole;
+    };
+
+/** 校验配额与会话、组装本轮 LLM 所需 history（含尚未落库的用户句） */
+async function loadCourseChatTurnContext(
   userId: string,
   sessionId: string,
   content: string,
-): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
+): Promise<LoadedTurnContext> {
   const quota = takeAiTurn(userId);
   if (!quota.ok) {
     return { ok: false, error: quota.error };
@@ -41,6 +59,13 @@ export async function appendUserMessageAndGetAssistantReply(
 
   const session = await prisma.chatSession.findFirst({
     where: { id: sessionId, userId },
+    select: {
+      id: true,
+      userId: true,
+      courseId: true,
+      title: true,
+      model: true,
+    },
   });
 
   if (!session) {
@@ -60,17 +85,19 @@ export async function appendUserMessageAndGetAssistantReply(
     select: { role: true, content: true },
   });
 
-  const history = prior.map((m) => ({
+  const history: ChatTurn[] = prior.map((m) => ({
     role: toOpenAIRole(m.role),
     content: m.content,
   }));
   history.push({ role: "user", content });
 
   const courseContext = session.courseId
-    ? await prisma.learningCourse.findUnique({
-        where: { id: session.courseId },
-        include: { materials: { orderBy: { position: "asc" } } },
-      }).then((course) => (course ? prismaCourseToPayload(course) : null))
+    ? await prisma.learningCourse
+        .findUnique({
+          where: { id: session.courseId },
+          include: { materials: { orderBy: { position: "asc" } } },
+        })
+        .then((course) => (course ? prismaCourseToPayload(course) : null))
     : null;
 
   let retrieval: CourseRagRetrievalResult = {
@@ -111,7 +138,7 @@ export async function appendUserMessageAndGetAssistantReply(
   const viewerRole: CourseChatViewerRole =
     chatUser?.role === UserRole.TEACHER ? "TEACHER" : "STUDENT";
 
-  const orchestration =
+  const orchestration: CourseChatOrchestration | undefined =
     courseContext != null && chatUser
       ? {
           viewerRole,
@@ -124,6 +151,90 @@ export async function appendUserMessageAndGetAssistantReply(
         }
       : undefined;
 
+  const model = session.model?.trim() || resolveDefaultChatModel();
+
+  return {
+    ok: true,
+    session,
+    history,
+    courseContext,
+    orchestration,
+    model,
+    retrieval,
+    viewerRole,
+  };
+}
+
+async function persistAssistantAndSideEffects(params: {
+  userId: string;
+  sessionId: string;
+  sessionCourseId: string | null;
+  sessionTitle: string | null;
+  userContent: string;
+  reply: string;
+  model: string;
+  retrieval: CourseRagRetrievalResult;
+  viewerRole: CourseChatViewerRole;
+  /** 为 true 时在 StudyRecord.meta 中标记 streaming，便于排查 */
+  streaming?: boolean;
+}): Promise<void> {
+  await prisma.chatMessage.create({
+    data: {
+      sessionId: params.sessionId,
+      role: MessageRole.ASSISTANT,
+      content: params.reply,
+    },
+  });
+
+  if (params.sessionCourseId) {
+    await prisma.studyRecord.create({
+      data: {
+        userId: params.userId,
+        courseId: params.sessionCourseId,
+        chatSessionId: params.sessionId,
+        recordType: StudyRecordType.AI_SESSION,
+        eventName: "ai_chat",
+        source: "ai_sidebar",
+        note: params.userContent.slice(0, 500),
+        meta: {
+          model: params.model,
+          promptLength: params.userContent.length,
+          promptVersion: CHAT_PROMPT_VERSION,
+          viewerRole: params.viewerRole,
+          ragMode: params.retrieval.ragMode,
+          retrievalChunkIds: params.retrieval.retrievalChunkIds,
+          ...(params.streaming ? { streaming: true } : {}),
+          trackedAt: new Date().toISOString(),
+        },
+      },
+    });
+  }
+
+  await prisma.chatSession.update({
+    where: { id: params.sessionId },
+    data: {
+      title: params.sessionTitle?.trim()
+        ? params.sessionTitle
+        : params.userContent.slice(0, 40),
+      model: params.model,
+    },
+  });
+}
+
+/**
+ * 在已校验归属的会话中追加一条用户消息并生成助手回复（含课程上下文时走 grounded prompt）。
+ * 供 Server Action 与 Route Handler 复用。
+ */
+export async function appendUserMessageAndGetAssistantReply(
+  userId: string,
+  sessionId: string,
+  content: string,
+): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
+  const ctx = await loadCourseChatTurnContext(userId, sessionId, content);
+  if (!ctx.ok) {
+    return { ok: false, error: ctx.error };
+  }
+
   const userRow = await prisma.chatMessage.create({
     data: {
       sessionId,
@@ -133,12 +244,11 @@ export async function appendUserMessageAndGetAssistantReply(
   });
 
   let reply: string;
-  const model = session.model?.trim() || resolveDefaultChatModel();
   try {
-    reply = await generateAssistantReply(history, {
-      courseContext,
-      orchestration,
-      model,
+    reply = await generateAssistantReply(ctx.history, {
+      courseContext: ctx.courseContext,
+      orchestration: ctx.orchestration,
+      model: ctx.model,
     });
   } catch (e) {
     await prisma.chatMessage.delete({ where: { id: userRow.id } });
@@ -153,44 +263,80 @@ export async function appendUserMessageAndGetAssistantReply(
     };
   }
 
-  await prisma.chatMessage.create({
-    data: {
-      sessionId,
-      role: MessageRole.ASSISTANT,
-      content: reply,
-    },
-  });
-
-  if (session.courseId) {
-    await prisma.studyRecord.create({
-      data: {
-        userId,
-        courseId: session.courseId,
-        chatSessionId: session.id,
-        recordType: StudyRecordType.AI_SESSION,
-        eventName: "ai_chat",
-        source: "ai_sidebar",
-        note: content.slice(0, 500),
-        meta: {
-          model,
-          promptLength: content.length,
-          promptVersion: CHAT_PROMPT_VERSION,
-          viewerRole,
-          ragMode: retrieval.ragMode,
-          retrievalChunkIds: retrieval.retrievalChunkIds,
-          trackedAt: new Date().toISOString(),
-        },
-      },
-    });
-  }
-
-  await prisma.chatSession.update({
-    where: { id: sessionId },
-    data: {
-      title: session.title?.trim() ? session.title : content.slice(0, 40),
-      model,
-    },
+  await persistAssistantAndSideEffects({
+    userId,
+    sessionId,
+    sessionCourseId: ctx.session.courseId,
+    sessionTitle: ctx.session.title,
+    userContent: content,
+    reply,
+    model: ctx.model,
+    retrieval: ctx.retrieval,
+    viewerRole: ctx.viewerRole,
   });
 
   return { ok: true, reply };
+}
+
+/**
+ * 流式生成：先写入用户消息，边生成边回调 delta，完成后写入助手消息。
+ * 失败时删除已写入的用户消息（与非流式路径一致）。
+ */
+export async function appendUserMessageStreamReply(
+  userId: string,
+  sessionId: string,
+  content: string,
+  onDelta: (chunk: string) => void | Promise<void>,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ctx = await loadCourseChatTurnContext(userId, sessionId, content);
+  if (!ctx.ok) {
+    return { ok: false, error: ctx.error };
+  }
+
+  const userRow = await prisma.chatMessage.create({
+    data: {
+      sessionId,
+      role: MessageRole.USER,
+      content,
+    },
+  });
+
+  let reply: string;
+  try {
+    reply = await streamAssistantReply(
+      ctx.history,
+      {
+        courseContext: ctx.courseContext,
+        orchestration: ctx.orchestration,
+        model: ctx.model,
+      },
+      onDelta,
+    );
+  } catch (e) {
+    await prisma.chatMessage.delete({ where: { id: userRow.id } });
+    logStructured("ai_chat_stream_failed", {
+      userId,
+      sessionId,
+      err: e instanceof Error ? e.name : "unknown",
+    });
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "生成回复失败",
+    };
+  }
+
+  await persistAssistantAndSideEffects({
+    userId,
+    sessionId,
+    sessionCourseId: ctx.session.courseId,
+    sessionTitle: ctx.session.title,
+    userContent: content,
+    reply,
+    model: ctx.model,
+    retrieval: ctx.retrieval,
+    viewerRole: ctx.viewerRole,
+    streaming: true,
+  });
+
+  return { ok: true };
 }

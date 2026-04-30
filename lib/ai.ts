@@ -129,6 +129,112 @@ export async function generateAssistantReply(
   return text;
 }
 
+/**
+ * OpenAI 兼容流式 chat/completions：逐段回调 delta，返回完整文本。
+ */
+export async function streamAssistantReply(
+  history: ChatTurn[],
+  options: GenerateAssistantOptions | undefined,
+  onDelta: (chunk: string) => void | Promise<void>,
+): Promise<string> {
+  const key = process.env.OPENAI_API_KEY;
+  const lastUser = history.filter((m) => m.role === "user").pop()?.content ?? "";
+  const courseMode = Boolean(options?.courseContext);
+
+  if (!key?.trim()) {
+    const demo =
+      courseMode && options?.courseContext
+        ? formatDemoCourseReply(
+            options.courseContext,
+            lastUser,
+            options.orchestration ?? undefined,
+          )
+        : `[演示模式] 未配置 OPENAI_API_KEY。你刚才说：「${lastUser.slice(0, 500)}」`;
+    await onDelta(demo);
+    return demo;
+  }
+
+  const baseUrl =
+    process.env.OPENAI_BASE_URL?.replace(/\/$/, "") ?? "https://api.openai.com/v1";
+  const model = options?.model?.trim() || resolveDefaultChatModel();
+  const messages = buildMessagesForApi(history, options);
+
+  let temperature = courseMode ? 0.35 : 0.7;
+  if (courseMode && options?.orchestration) {
+    temperature =
+      options.orchestration.viewerRole === "TEACHER" ? 0.28 : 0.42;
+  }
+
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature,
+      stream: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`LLM 请求失败 (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const body = res.body;
+  if (!body) {
+    throw new Error("LLM 未返回可读流");
+  }
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let carry = "";
+  let full = "";
+
+  const flushLine = async (line: string) => {
+    const trimmed = line.replace(/\r$/, "").trim();
+    if (!trimmed || trimmed.startsWith(":")) return;
+    if (!trimmed.startsWith("data:")) return;
+    const payload = trimmed.slice(5).trim();
+    if (payload === "[DONE]") return;
+    try {
+      const json = JSON.parse(payload) as {
+        choices?: Array<{ delta?: { content?: string } }>;
+      };
+      const piece = json.choices?.[0]?.delta?.content;
+      if (typeof piece === "string" && piece.length > 0) {
+        full += piece;
+        await onDelta(piece);
+      }
+    } catch {
+      /* 非 JSON 行忽略 */
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    carry += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = carry.indexOf("\n")) >= 0) {
+      const line = carry.slice(0, nl);
+      carry = carry.slice(nl + 1);
+      await flushLine(line);
+    }
+  }
+  const tail = carry.replace(/\r$/, "").trim();
+  if (tail) await flushLine(tail);
+
+  const out = full.trim();
+  if (!out) {
+    throw new Error("LLM 流式返回为空");
+  }
+  return out;
+}
+
 export async function generateAssignmentInitialReview(input: {
   courseTitle: string;
   assignmentTitle: string;
