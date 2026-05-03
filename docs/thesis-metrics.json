@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-05-03T02:47:28.717Z",
+  "model": "deepseek-v4-flash",
+  "baseUrl": "https://api.deepseek.com",
+  "mode": "live",
+  "nonStreaming": {
+    "runs": 12,
+    "success": 12,
+    "failure": 0,
+    "avgMs": 6723.55,
+    "p95Ms": 8940.77,
+    "minMs": 4046.58,
+    "maxMs": 8940.77
+  },
+  "streaming": {
+    "runs": 12,
+    "success": 12,
+    "failure": 0,
+    "avgMs": 6696.44,
+    "p95Ms": 9971.07,
+    "minMs": 4324.78,
+    "maxMs": 9971.07,
+    "avgFirstTokenMs": 2734.77,
+    "p95FirstTokenMs": 5057.47
+  },
+  "ragAblation": {
+    "sampleSize": 6,
+    "withoutRag": {
+      "tp": 7,
+      "fp": 8,
+      "fn": 5,
+      "precision": 0.4667,
+      "recall": 0.5833,
+      "f1": 0.5185,
+      "avgLatencyMs": 20604.66
+    },
+    "withRag": {
+      "tp": 12,
+      "fp": 6,
+      "fn": 0,
+      "precision": 0.6667,
+      "recall": 1,
+      "f1": 0.8,
+      "avgLatencyMs": 7706.27
+    }
+  },
+  "availability": {
+    "totalRequests": 36,
+    "successRequests": 36,
+    "score": 1
+  }
+}
