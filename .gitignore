@@ -50,4 +50,12 @@ next-env.d.ts
 
 log.md
 
-thesis.*
+thesis.aux
+thesis.log
+thesis.out
+thesis.pdf
+thesis.synctex.gz
+thesis.toc
+thesis.lot
+thesis.lof
+thesis.lot

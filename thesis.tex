@@ -1,0 +1,1081 @@
+\documentclass[12pt,a4paper,oneside]{ctexbook}
+
+\usepackage[a4paper,top=30mm,bottom=25mm,left=25mm,right=25mm,headheight=15pt,headsep=5mm,footskip=15mm]{geometry}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\numberwithin{equation}{chapter}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{positioning}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage[superscript,compress]{cite}
+\usepackage{enumitem}
+\usepackage{indentfirst}
+\pgfplotsset{compat=1.18}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\setstretch{1.25}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+\titleformat{\chapter}{\centering\zihao{-2}\bfseries}{第\thechapter 章}{1em}{}
+\titleformat{\section}{\zihao{4}\bfseries}{\thesection}{0.8em}{}
+\titleformat{\subsection}{\zihao{-4}\bfseries}{\thesubsection}{0.8em}{}
+\titlespacing*{\chapter}{0pt}{0.5\baselineskip}{0.5\baselineskip}
+\titlespacing*{\section}{0pt}{0.5\baselineskip}{0.5\baselineskip}
+\titlespacing*{\subsection}{0pt}{0.5\baselineskip}{0.5\baselineskip}
+
+\DeclareCaptionFont{captionfont}{\songti\bfseries\zihao{-4}}
+\captionsetup[figure]{font=captionfont,labelsep=space}
+\captionsetup[table]{font=captionfont,labelsep=space}
+
+\fancypagestyle{frontmatterstyle}{
+  \fancyhf{}
+  \fancyfoot[C]{-\roman{page}-}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\fancypagestyle{mainmatterstyle}{
+  \fancyhf{}
+  \fancyhead[C]{湖南科技大学本科生毕业设计（论文）}
+  \fancyfoot[C]{-\arabic{page}-}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\fancypagestyle{tocmatterstyle}{
+  \fancyhf{}
+  \fancyhead[C]{湖南科技大学本科生毕业设计（论文）}
+  \fancyfoot[C]{-\roman{page}-}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2.0cm}
+  {\zihao{1}\bfseries 湖\hspace{1em}南\hspace{1em}科\hspace{1em}技\hspace{1em}大\hspace{1em}学\par}
+  \vspace{1.4cm}
+  {\zihao{2}\bfseries 本科毕业设计（论文）\par}
+  \vspace{2.2cm}
+  {\zihao{2}\bfseries 题\hspace{1em}目：智能学习辅助系统设计与实现\par}
+  \vspace{2.0cm}
+  \begin{tabular}{>{\bfseries}p{3.5cm}p{8.5cm}}
+    作\hspace{1.5em}者： &  姜诏宇\\
+    学\hspace{1.5em}院： & 计算机科学与工程学院 \\
+    专\hspace{1.5em}业： & 软件工程 \\
+    学\hspace{1.5em}号： & 2205050219 \\
+    指导教师： & 余庆春 \\
+  \end{tabular}
+  \vfill
+  {\zihao{3}二〇二六年五月\par}
+\end{titlepage}
+\thispagestyle{empty}
+
+\cleardoublepage
+\pagenumbering{roman}
+\pagestyle{frontmatterstyle}
+\chapter*{摘要}
+\addcontentsline{toc}{chapter}{摘要}
+为了解决传统教学平台存在的“资料沉淀多、过程反馈慢、课程语境弱”等问题，作者设计并开发出一个智能学习辅助系统——AI Learn。该系统主要面向老师学生互动这一应用场景，包括课程管理、资料管理、作业上传及批阅、课程相关的聊天等功能。技术层面使用 Next.js 和 TypeScript 实现前后端一体式开发方式，在后端统一进行 AI 相关接口调用工作。
+
+为了提升问答可信度，系统采用课程中心化数据结构以及检索增强生成方法，将课程资料切分成若干部分后再进行向量匹配，在对话过程中根据一定条件及成本投入当前对话内容中。为保持教学连贯性，系统还提供了非流式以及流式聊天方式，在外部模型不可用情况下会自动退回到演示状态。为便于开发人员后续维护工作，系统将认证授权、会话组织、检索插入及模型调用分离，使用静态检查、单元测试、构建以及端到端测试作为质量把关手段。
+
+从实验结果看，在本批数据集及参数设置下，系统发出的所有36次请求均被正确返回，有效率是100\%，非流式平均延迟时间为6.72秒，流式第一个响应的时间是2.73秒；RAG增强问答F1值达到0.80，明显高于无RAG情况下的0.5185。这证明了课程语境限制以及教师审核对于教学应用来说是可以同时保证性能和可靠性的，也为今后的生成式AI应用于教学平台提供了一种可行的方法。
+
+\vspace{1em}
+\noindent\textbf{关键词：}智能学习辅助；课程上下文；RAG；作业初评；教育信息化
+
+\cleardoublepage
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+The thesis is about AI Learn which is an intelligent learning support system that is aimed at enhancing the timely delivery of feedback and consistency of context on feedback delivery in higher education contexts. The system facilitates teacher-student cooperation in course management, learning materials, assignment submission and review, and course-context-sensitive chat.
+
+It is implemented using full-stack architecture using Next.js and TypeScript along with Prisma and SQLite to manipulate data. Centralized AI service layer is introduced to standardize model invocation and retrieval-augmented generation (RAG) is used to ground responses in course materials. The pipeline comprises of access control, session management, context retrieval, prompt orchestration and graceful fallback.
+
+Both non-streaming and streaming chat APIs are offered to guarantee service continuity. In case of unavailability of external model calls, the system will automatically switch to a demo mode to ensure that main teaching operations are available. Linting, unit testing, build checking and end-to-end testing of CI reinforces engineering quality.
+
+The outcome of the experiment in the existing configuration is that the 36 sampled requests have all been successful (availability 100\%). The mean latency of non-streaming replies is 6.72s whereas the mean first token latency of streaming replies is 2.73s. On ablation experiments, RAG increases F1 by 0.5185 to 0.8000. As indicated in the research, retrieval based on courses and review by teachers may be used concurrently to enhance the practicality as well as the reliability of AI-based instructional systems.
+
+
+\vspace{1em}
+\noindent\textbf{Keywords:} Intelligent Learning Support; Course Context; RAG; Assignment Pre-review; Educational Informatization
+
+\cleardoublepage
+\pagestyle{tocmatterstyle}
+\tableofcontents
+\cleardoublepage
+\pagenumbering{arabic}
+\pagestyle{mainmatterstyle}
+
+\chapter{绪论}
+
+\section{研究背景}
+以ChatGPT为代表的生成式AI正在改变高校教学中知识获取以及反馈的方式\cite{ref9,ref10}。大多数传统的教学管理系统注重“发布-收集”，即教师发布课程、作业等，学生查阅资料后提交。在整个学习过程中答疑与反馈并不处于同一个语义空间内，会产生以下三个问题：答疑缺乏课程语义背景，导致模型回答跑题；作业评分需要大量人力，无法满足大面积授课需求；虽然可以保存学习行为数据，但是不能用于辅助教学。
+
+随着教育界对于“智慧教学”、“人机协同教学”的关注度日益提高\cite{ref1,ref5}，在课程管理和学习中引入生成式AI是工程实现及教育研究的热点问题。毕业设计课题基于可运行代码仓库，针对课程上下文下的问题回答以及作业初步批阅，开发可测试、可迭代的智能学习助手
+
+高校教学目前主要问题并不是“有没有平台”，而是“平台数据能不能真正用到教学中去”。课程材料已经在平台上，但是答疑时却常常忽略这些内容。造成后果就是：答案可能会与课程目标脱节，也可能会与老师当堂讲述内容不符。对于作业评分也有压力，在大课的情况下，每一个作业都人工批阅显然难以做到及时反馈。学生在这个过程中遇到的问题也是比较清楚，就是不知道自己哪里不足，而不是完全不懂。系统需要一个长期并且可以追踪的帮助方式，而不能是一次性问答；否则就会出现“有大量信息但是有效反馈很少”。
+
+由于这些实际限制，重点从“是否接入大模型”转向“如何使模型良好地服务于课程过程”。我们并不追求开放域生成的能力，而是以课程约束、权限校验、数据回流以及教师复核作为主要的设计考虑因素，在后面的章节中会详细介绍相关的实现方案（如第4章）、实验结果（如第6章）。这也就决定了在系统的前期阶段更加关注其能够正常运作，而不是每次提问的回答效果最好。
+
+\section{问题定义与研究边界}
+为防止论文涉及内容过多，本文把问题聚焦到“课程场景中可控AI教学辅助系统的设计”。即不是模型本身在开放域上有多强的能力，而是在课程范围内它能否有效实现三种功能：课程相关问题回答、作业初步反馈撰写以及教师复查环节的支持。如果这三项工作不能串联起来，那么即使这个模型具有很好的生成力也无法进入到实际的教学工作中去。
+
+据此，本文对研究边界作出如下约束：
+\begin{enumerate}[label=(\arabic*)]
+  \item \textbf{场景边界：}仅涉及课程内文本资料驱动的问答以及作业批阅，在线搜索不在范围内；
+  \item \textbf{角色边界：}面向教师、学生两个角色进行协作，但是并不涉及整个教务管理工作；
+  \item \textbf{能力边界：}主要考察工程可达性、可维护性和可复现性而不是为了追求模型榜单上排名；
+  \item \textbf{数据边界：}实验数据以项目内部收集脚本以及日志为准，不引用外部不可追溯的数据来源。
+\end{enumerate}
+
+以上边界确定了本文方法选取，在系统架构上重视统一AI调用、权限校验以及故障回退，在评价方面重视“质量+时延+可用性”的综合指标，在结论部分重视“可工程化落地”而不是“单次生成最优结果”，这样既可以满足本科学位论文可行度要求又可以保证结论和代码一一对应。
+
+\section{研究意义}
+研究意义可从三个层面概括：
+\begin{enumerate}[label=(\arabic*)]
+  \item \textbf{理论意义：}理论价值在于对于课程语境下生成式AI教学助手的研究，提倡“与AI协同学习而不是被AI取代”教学理念\cite{ref6}。
+  \item \textbf{工程意义：}形成统一 AI 调用层以及 RAG 组件化结构，减少业务层对于模型 API 的依赖性，便于后续开发。
+  \item \textbf{应用意义：}利用作业初评以及课程上下文聊天提高反馈时效性，减轻教师重复性批改负担。
+\end{enumerate}
+
+理论上的工作是将"课程上下文约束"作为主要因素提出。在教育场景下，模型的效果不仅取决于模型大小，还受到课程目标范围、教师复查力度以及过程数据可追溯程度的影响。这弥补之前单纯比较模型能力的方法。
+
+从工程的角度看是链路统一管理。认证授权、会话编排、检索注入、异常回滚以及行为日志等都放在一个服务链路上，接口边界清楚，每个模块的功能明确。以后如果需要更换供应商或者改变检索参数，改动范围局限在一个很小的范围内。
+
+从应用角度，“效率提升与责任不转移”同步进行。学生得到更快课程一致性反馈，老师将繁琐筛查工作交由AI处理而自己有最终决定权，在管理层面上基于学生的学习情况做运营分析等。三者并非互相取代的关系，而是相辅相成的关系。
+
+\section{研究内容}
+围绕 AI Learn 的构建与验证，主要研究内容如下：
+\begin{itemize}
+  \item 搭建教师/学生双角色协同平台，在课程、资料、作业以及聊天等方面；
+  \item 设计课程中心化数据模型，支撑会话、资料、记录间的语义关联；
+  \item 设计并实现课程上下文增强问答流程和作业 AI 初评流程；
+  \item 建立测试与持续集成流程，验证系统稳定性与工程可行性。
+\end{itemize}
+
+研究工作主要分为以下四个方向：角色边界、数据贯通、智能服务、工程验证。角色边界即确定教师和学生在课程、作业以及对话中可以进行的操作；数据贯通使会话、资料、作业、学习记录能够在课程层面上相互连接；智能服务包括上下文注入、模型回退、审核闭环等；工程验证使用静态检查、单元测试、构建及端到端门禁控制逐渐消除风险。
+
+对于交付成果而言，本文不仅提供一个可运行原型，同时给出可复现实验方案以及相关日志，在第六章中所展示的时延、可用性以及 RAG 消融结果就是直接证据。
+
+\section{论文结构安排}
+全文结构如图\ref{fig:thesisStructure}所示。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[node distance=8mm and 8mm, every node/.style={draw, rounded corners, align=center, minimum width=2.9cm, minimum height=0.9cm}]
+    \node (c1) {第1章\\绪论};
+    \node[right=of c1] (c2) {第2章\\相关研究};
+    \node[right=of c2] (c3) {第3章\\需求分析};
+    \node[right=of c3] (c4) {第4章\\总体设计};
+    \node[below=of c4] (c5) {第5章\\关键实现};
+    \node[left=of c5] (c6) {第6章\\测试分析};
+    \node[left=of c6] (c7) {第7章\\总结展望};
+    \draw[->] (c1) -- (c2);
+    \draw[->] (c2) -- (c3);
+    \draw[->] (c3) -- (c4);
+    \draw[->] (c4) -- (c5);
+    \draw[->] (c5) -- (c6);
+    \draw[->] (c6) -- (c7);
+  \end{tikzpicture}
+  \caption{论文结构安排}
+  \label{fig:thesisStructure}
+\end{figure}
+
+\section{本章小结}
+本章阐述了研究背景及目的、研究价值等，并对全文内容进行了概括介绍，便于后文进一步开展相关工作进行梳理以及系统设计
+
+\chapter{相关研究与技术基础}
+
+\section{生成式 AI 教育应用研究}
+文献中关于生成式 AI 教学应用报道屡见不鲜：智能答疑、内容生成、作业批阅以及学习辅导是较为常见的方向。杨宗凯等人分析生成式 AI 对教育评价及教学活动的影响\cite{ref9}；卢宇等人认为可解释性和道德规范须先行考虑\cite{ref10}。从课堂教学角度出发，张金青等人提出“学情数据+智能服务”方案\cite{ref1}；Huang等人提供生成式工具有助于提高学习效果例证\cite{ref5}。这为我们选定“课程语境下的限制条件+流程闭合环路”提供参考依据，同时也指出一个问题，在只注重效率忽视审计环节情况下，模型输出无法被纳入正规的教学评估之中。
+
+Maher 和 Kelly 的“与 AI 一起学习”，更接近教学实际：模型可以参与学习，但是不能把评价工作转嫁给它\cite{ref6}。这也是一致的，“AI 初评+教师复审”。
+
+效率路线与治理路线在文章中经常一起出现，但是在实践中会相互矛盾。自动答疑可以节省时间，但是也有可能增加幻觉的风险；而重视合规以及审计又会导致进展缓慢。高校环境下的权衡更为实际的是：尽可能减少反馈滞后的同时保证流程可控。
+
+如果我们把讨论从“工具是否有用”推进到“过程能否承接”，那么评判的标准就比较明确：答案能否对应到课件内容上；老师校验是否还在闭环中；行为数据能否回溯。而从实施的角度就是课程上下文限制、两轮审核以及结构化存储这三方面的工作。这个标准不能让每一个输入都有优质回答，但是可以让有错误的地方被发现并及时纠正。
+
+\section{RAG 与学习助手系统研究}
+在学习助手方面，RAG能够通过查阅课程资料来减少模型出现幻觉的可能性。Prasad等人开发了PrepMind AI并证明了RAG可用于考试备考\cite{ref3}。同时也有国内学者指出，在基于大语言模型的学习平台上应该融合知识库以及个性化推荐等技术\cite{ref4,ref8}。另外对于多种类型的学习进行的研究也为以后的发展提供了思路\cite{ref7}。
+
+在 AI Learn 实现过程中，课程资料被切片之后送入向量检索并根据相似度阈值进行筛选然后加入到提示词中，余弦相似度定义为：
+\begin{equation}
+\mathrm{sim}(q,d)=\frac{\mathbf{q}\cdot\mathbf{d}}{\|\mathbf{q}\|_2\|\mathbf{d}\|_2}
+\label{eq:cosine}
+\end{equation}
+其中 $\mathbf{q}$ 表示用户问题向量，$\mathbf{d}$ 表示知识块向量。系统最终检索分数可表示为
+\begin{equation}
+s_i=\alpha\cdot \mathrm{sim}(q,d_i)+(1-\alpha)\cdot r_i,
+\label{eq:retrievalScore}
+\end{equation}
+其中 $r_i$ 为规则项（如资料新近性、课程优先级），$\alpha\in[0,1]$。
+
+相比于纯生成，RAG的优点是把“概率回答”变为“有证据的回答”。纯生成主要是利用预训练知识以及对上下文的理解，在课程术语、教师个性化需求、资料更新时容易出现偏差。RAG 通过对当前课程资料进行检索以获取外部支持从而使得其回答更加符合课程内容。而教学问答就需要这个功能，因为在教学问答中，问题的答案一般应该与课程资料、作业的要求、评分标准等相契合。
+
+但是 RAG 并不是说一定比其他方法好，在实际中也会有影响因素如检索覆盖率、向量质量、阈值以及上下文预算等。如果阈值过高会导致一些结果被漏召回；而阈值过低则引入大量无关信息。Top-K 过小可能导致重要依据丢失；过大又会造成上下文长度增加从而降低鲁棒性和可维护性。在代码实现上是“阈值过滤+片段截断+失败回退”，即当有匹配时突出依据的重要性；无匹配时不打断整个流程继续进行。
+
+\section{关键技术选型}
+系统采用 Next.js App Router 构建前后端一体化服务，数据层使用 Prisma + SQLite，AI 调用统一收口至服务端模块。核心技术选型见表\ref{tab:techStack}。
+
+技术选型有三条标准：场景适用性、复杂度可控性以及后期可扩展性。前端以及接口部分使用 Next.js App Router 是因为可以一次性在同一个代码库中实现页面、服务端业务逻辑以及 API 路由等，降低耦合度\cite{ref12}。数据层使用 Prisma + SQLite 是因为在毕业设计期间对于部署成本、开发效率以及后期演进的权衡。Prisma 提供类型安全性以及迁移功能，而 SQLite 便于快速部署与调试\cite{ref13}。
+
+在AI以及检索侧，采用的技术方案是“统一AI调用层+LanceDB向量检索”，不在各个业务路由中分散地调用外部模型。集中处理之后，模型参数、异常处理、回退逻辑以及日志都可以统一管理。LanceDB负责课程知识点向量的保存及查询，增加新的内容较为便捷\cite{ref14}。
+
+而且，测试以及 CI 并不是可选项，而是整个项目的组成部分，Vitest 来测试主要的功能及 orchestrations，Playwright 来覆盖主要的用户路径，而 GitHub Actions 将 lint、test、build、e2e 连接成一道把关的防线，在需求变动频繁时能够及时发现回归的风险。
+
+\begin{table}[H]
+  \centering
+  \caption{系统关键技术栈}
+  \label{tab:techStack}
+  \begin{tabular}{p{3.3cm}p{4.3cm}p{6.2cm}}
+    \toprule
+    技术域 & 技术选型 & 选型理由 \\
+    \midrule
+    前端框架 & Next.js 16 + React 19 & App Router 支持服务端渲染与路由一体化 \\
+    语言与类型 & TypeScript & 静态类型约束提高代码可维护性 \\
+    数据访问 & Prisma 7 & ORM 抽象良好，方便模型变更 \\
+    数据库 & SQLite + better-sqlite3 & 毕业设计阶段使用轻量级，迁移成本低 \\
+    AI 调用 & OpenAI 兼容接口 & 支持模型可替换和统一网关 \\
+    向量检索 & LanceDB & 适配课程知识块向量存储与检索 \\
+    测试与 CI & Vitest + Playwright + GitHub Actions & 覆盖单元、端到端与持续集成 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{技术路线对比与取舍依据}
+为防止出现“只有结果而无取舍”的情况，在此对关键技术路线进行比较说明。前端与接口一体化方案并不是最优解，还可以有另一种方案即“前后端完全拆分+独立网关”，在数据层面也可以使用更复杂的数据库，在搜索层面也可以使用外部托管的向量服务等。但是考虑到实际情况中的开发难度以及可维护性和测试效率等因素，所以采用了目前的方法。
+
+在应用框架层，Next.js 一体化方案的优势是协同开发成本低，页面与接口同仓可共享类型与工具链，便于快速迭代；不足是服务边界需要在代码层主动约束，避免逻辑混杂。本文通过目录分层与模块收口缓解了这一风险。相比之下，完全拆分虽然边界更清晰，但会显著增加接口联调与部署复杂度，不利于在有限周期内完成“实现 + 实验 + 论文”闭环\cite{ref12}。
+
+从数据层面来看，SQLite+Prisma侧重于轻量级工程验证，在部署及迁移上较为方便，类型约束明确，开发便捷；但是对高并发以及大规模分布式支持不足。由于本文主要目的是进行课程语境下智能辅助流程验证而非开发大规模教务系统，所以这种方案可以满足目前需求；如果以后发展到学院级高并发时，可以平滑迁移到更高级别数据库方案\cite{ref13}。
+
+对于AI及检索层面，统一AI调用层+LanceDB的选择点是“可控而非极致”。统一调用层可以统一进行模型更换、异常回退以及参数管理等操作以减少业务端分散式模型调用的问题；而LanceDB提供了轻量级本地部署的查询功能便于课程资料内部检验。相比于完全托管方式，这种方式对开发者的研发自由度以及实验可复现性有利但是在参数调优以及数据治理上需要更多的投入精力\cite{ref14}。
+
+以上所述并非是“全局最优解”，而是在一定条件下的“最优可行解”。这样的选择性是符合实际情况的，在满足基本要求的情况下，再考虑进一步提高基础能力的问题。
+
+\section{本章小结}
+本章基于教育应用研究、RAG学习助手研究和技术选型三方面奠定理论及工程基础，以支撑后文的需求分析及架构设计工作。
+
+\chapter{系统需求分析}
+
+\section{系统可行性分析}
+在需求展开之前，需要考虑的是方案是否可行，在此之前对现有的代码库以及运行环境做一下分析，从技术上、经济上以及操作上的进行分析。
+
+\subsection{技术可行性}
+系统的技术方案已实现，在项目中有应用，主要部分可以正常使用。前端使用 Next.js App Router 和 React 组件，后端使用 Route Handlers 搭建 API，数据库使用 Prisma + SQLite 支持，AI 能力在 \path{lib/ai.ts} 中集中管理，课程搜索通过 LanceDB 进行。这样的“单仓一体化 + 分层解耦”方式有利于功能改进在可控范围内进行\cite{ref12,ref13,ref14}。
+
+从实现程度来看，项目涵盖了认证、课程管理、资料管理、作业流程、聊天会话、流式接口以及回退等功能主要部分。测试端有 lint、单元测试、构建及 E2E 冒烟门禁，表明该系统不是只是一个概念产品，而是一个有一定工程限制可以运行的产品，在“能否做成这个系统”的问题上，技术上是可行的。
+
+\subsection{经济可行性}
+本论文方案从资源消耗角度适配本科生毕业设计要求。开发以及运行所需资源主要是基于开源工具，部署环境可以在一般普通电脑上实现，数据库及索引文件保存均为小规模文件。即便未提供外部模型密钥情况下，程序也可以通过demo回退保证整个过程完整性，减少对于外网服务稳定性过高要求\cite{ref12,ref13}。
+
+从投入产出的角度，系统可以直接服务于课程组织以及学习反馈方面的工作：对于老师来说可以节省大量的重复性初筛工作，对学生来说可以得到更快捷的学习效果反馈，对管理者来说可以积累可以追溯的过程信息。相比于单纯的演示类系统，AI Learn 的优势在于提高了工作效率并且增强了可审计性，有实际的意义。
+
+\subsection{操作可行性}
+系统交互流程与教学过程基本相同。教师进行建课、发布、审核等操作，学生进行入课、学习、提交作业、提问等操作。所有重要操作均可在网页上或者通过标准API实现，规则反馈可以立即显示给用户，对于用户来说不需要了解模型参数就可以完成大部分工作，降低了使用难度。
+
+同时，系统采用角色权限以及资源所有者限制降低错误操作发生的几率，教师不能跨越班级管理不属于自己的资源，学生也不能超越权限查看他人的信息。这样做到“会用”并且“用对”，保证了系统在学校环境下的可用性。
+
+\section{角色需求分析}
+系统服务对象为教师与学生两类主体，角色能力边界见表\ref{tab:roleNeeds}。
+
+在教学过程中，教师与学生的角色需求是不对等的。教师主要关心的是课程组织效率以及评价的质量，而学生更加注重的是反馈的速度以及可以获得的帮助。这种不同会导致对权限的设计也不一样。如果教师的权利不够，那么就会影响整个课程管理的过程；如果学生权利过大，那么就有可能造成跨课程之间的访问和评价不公平的问题。表3.1中这些限制就是为了防止这两种相反的风险发生，而不仅仅是简单的将两者区分开来。
+
+为防止权限规则只是一种描述，在这里我们将需求拆分为“任务链+约束链”，任务链表示角色需要做的操作，而约束链表示操作成立需要资源限制以及时间上的要求。比如对于课程聊天来说，学生需要具备两个条件：“已入课+会话绑定课程”。再如对于作业批阅而言，老师需要满足两个条件：“课程管理权限+有查证记录”。这样可以方便后续中间件开发。角色枚举与课程成员关系可在 \path{prisma/schema.prisma} 中进行比对。
+
+\begin{table}[H]
+  \centering
+  \caption{角色需求与权限边界}
+  \label{tab:roleNeeds}
+  \begin{tabular}{p{2.2cm}p{5.1cm}p{6.5cm}}
+    \toprule
+    角色 & 核心任务 & 权限边界 \\
+    \midrule
+    教师 & 创建课程、发布作业、查看提交、审核反馈 & 仅可管理本人课程及课程成员数据 \\
+    学生 & 加入课程、学习资料、提交作业、课程聊天 & 仅可访问已加入课程及本人学习记录 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{功能需求分析}
+系统按照教学闭环拆分六类功能模块，见表\ref{tab:functionModules}。
+
+模块拆分以“最短教学闭环”为标准，即系统需要包含“建课$\to$学习$\to$提交$\to$反馈$\to$追踪”，如果一个模块脱离闭环单独存在，那么体验是断层的，数据也是不能复用的。例如聊天模块如果没有课时信息的支持，则其回复是不稳定的；而提交模块如果没有审核以及记录的过程，则过程性评价是不存在的。因此表\ref{tab:functionModules} 中的六个模块是以有先后顺序进行连接而不是并列存在。反过来讲，如果先上线聊天后补充相关约束条件，那么之前的历史对话就会出现“可以查看回复但是查不到回复的原因”。
+
+优先级也是这样。认证、课程、资料、作业、聊天是高优先级，因为他们影响到主要流程是否可行。学习记录是中优先级，但是他的数据模型也要提前设计，否则后面补充采集会带来统计口径差异问题。并不是说不重视记录的价值，而是在保证主要流程可以跑通之后再去考虑次要部分能不能扩展。
+
+\begin{table}[H]
+  \centering
+  \caption{功能模块需求矩阵}
+  \label{tab:functionModules}
+  \begin{tabular}{p{2.6cm}p{3.0cm}p{6.7cm}}
+    \toprule
+    模块 & 优先级 & 功能描述 \\
+    \midrule
+    认证与会话 & 高 & 登录注册、Cookie/JWT 鉴权、会话状态探测 \\
+    课程管理 & 高 & 教师建课、学生凭课程码加入、课程访问控制 \\
+    资料管理 & 高 & 课程资料增删改查、上下文统计 \\
+    作业管理 & 高 & 作业发布、学生提交、教师审核 \\
+    智能聊天 & 高 & 会话管理、课程上下文问答、流式返回 \\
+    学习记录 & 中 & 记录学习行为、支撑分析与追踪 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{非功能需求分析}
+除了功能完整外，该系统还需要有良好的性能、可靠性和可维护性等，如表\ref{tab:nonFunctional}所示。
+
+非功能性需求根据教学环境确定而非简单沿用一般互联网的标准。可用性上，教学活动有一定的时间段（课堂和截止前高峰），因此系统需要在这段时间内可访问，目标是 $\ge 99\%$，并使用演示回退来抵御外部模型变化影响，在安全上，课程数据包括学生的学习情况以及作业内容，核心接口鉴权覆盖率需为100\%，并且做到对身份、资源以及动作进行检查。
+
+性能方面，非功能性要求中将非流式平均时延与流式首包时延分开描述。这两者都会影响用户体验，但方式不同：前者影响任务完成效率，后者影响用户体感等待。拆开约束有利于单独对检索、编排以及生成进行优化。而可维护性和可测试性是为了更好地发展，以便新加入的功能或者更换新的模型可以尽早被检测到问题。
+
+\begin{table}[H]
+  \centering
+  \caption{非功能需求指标}
+  \label{tab:nonFunctional}
+  \begin{tabular}{p{3.0cm}p{3.0cm}p{6.3cm}}
+    \toprule
+    指标类别 & 目标值 & 说明 \\
+    \midrule
+    可用性 & $\ge 99\%$ 教学流程可达 & 外部 AI 故障时自动降级 demo 模式 \\
+    安全性 & 100\% 核心接口鉴权 & 课程访问需通过成员/拥有者校验 \\
+    可维护性 & 模块高内聚低耦合 & AI、业务、权限、数据访问解耦 \\
+    可测试性 & CI 全链路自动化 & lint + 单测 + 构建 + E2E \\
+    响应时延 & 非流式平均 $<8.0s$ & 流式接口首包时延目标 $<3.0s$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{关键评价指标}
+准确率（Precision）、召回率（Recall）与 F1 是用来衡量结果好坏的标准：
+\begin{equation}
+P=\frac{TP}{TP+FP},
+\label{eq:precision}
+\end{equation}
+\begin{equation}
+R=\frac{TP}{TP+FN},
+\label{eq:recall}
+\end{equation}
+\begin{equation}
+F_1=\frac{2PR}{P+R}.
+\label{eq:f1}
+\end{equation}
+其中，$TP$、$FP$、$FN$ 分别表示真阳性、假阳性和假阴性样本数。在第六章RAG消融实验中用关键词标注方式得到这三个值。
+对于综合服务质量，定义归一化综合得分：
+\begin{equation}
+Q=\omega_1 \cdot F_1+\omega_2\cdot (1-\hat{L})+\omega_3\cdot \hat{A},
+\label{eq:quality}
+\end{equation}
+其中 $\hat{L}$ 为归一化时延，$\hat{A}$ 为可用性评分，$\omega_1+\omega_2+\omega_3=1$。
+在此 $\omega_1=0.6,\omega_2=0.2,\omega_3=0.2$，以便更加强调问答的质量对教学的影响。
+
+以上指标包括“质量、效率、稳定性”。Precision 表示正确信息所占比例，Recall 反映关键知识点覆盖度，F1 是对二者求平均；$\hat{L}$ 衡量响应效率，$\hat{A}$ 衡量程序鲁棒性。相比于单个分数，这个多目标评估更加符合教学系统的实际情况，在课堂上，高质量但是高延迟是不能接受的，低延迟但是高幻觉也是不能被容许的。
+
+选用加权综合指标 $Q$ 的原因是不同的教学时期所重视的内容有所不同。在日常答疑中更加注重效率，在复习时更加重视正确率，在上线之后则首要考虑可用性。设置显式的权重可以使我们更好地表达对各种因素的关注程度并且有利于后期进行相关参数调整。
+
+\section{典型业务场景分解}
+为了使需求章节与实现章节有更好的对应关系，在此基础上我们将业务进一步划分为多个具体的场景并给出每个场景的输入、约束以及输出。场景划分是为了防止需求只是简单罗列了一系列的功能点，而将系统需要解决的问题细化到可以操作的程度。
+
+\subsection{场景一：课程内问答}
+输入包括用户问题、会话历史、课程标识以及资料候选片段。约束包括用户课程成员身份、会话归属一致性、上下文预算限制和资料命中率要求。输出包括回答内容、引用上下文摘要以及是否入库标志。最需要防范风险为“回答虽看起来合理但是并不来源于课程材料”，所以系统首先满足课程语义要求，之后再考虑使回答更生动有趣。
+
+\subsection{场景二：作业初评与教师复核}
+输入因素有作业题目、学生提交内容、课标及以往审核情况等。限制因素有教师审核主要原则、结构化输出要求以及信息不足时保守建议要求等。输出结果包括初评建议、审核写回状态与可追溯记录。此场景主要目的是不进行自动评分，而是提高教师前置筛查效率的同时保持评价责任归属。
+
+\subsection{场景三：异常回退与服务连续}
+输入要素为模型服务状态、检索服务状态、当前请求上下文等；约束条件为主流程不中断、错误语义可解释、落库状态一致；输出结果为降级答复、失败标签或者重试建议，该场景关注系统的健壮性，在外部依赖不稳定的情况下，系统仍然可以正常使用而不能直接不可用。
+
+通过场景划分，需求可以很方便地对应到第5章实现路径上：场景一为统一AI与RAG编排，场景二为审核闭环，场景三为异常恢复策略。这有利于文章从“功能介绍”变为“问题 - 约束 - 方案 - 验证”。
+
+\section{需求到实现的映射关系}
+为了使论文论证形成闭环，本文将第 3 章中的需求与第 4 至第 6 章的内容进行一一对应的关系。对应关系是“每一个核心需求都有一项设计选择以及一项证明支持它”，比如课程一致性的需求，在设计上表现为课程范围搜索以及权限检查，在验证上则是权限测试以及RAG消融的结果；而服务连续性的需求，在设计上表现为demo回退和两级降级机制，在验证上则是可用性和异常情况下的表现等。
+
+有两点好处。第一，减少章节断裂感：读者可以从需求直达其实现以及实验，不用在各章节之间猜来猜去。第二，方便答辩答辩：如果有人质疑“某个设计是否有意义”，就可以回到需求并且给出证明。对毕业设计论文来说，这样一种结构化比单纯的罗列功能更有效。
+
+而在实际应用中，映射关系还可以用来指导后续迭代优先级的选择。如果有某项需求还没有足够的证明，那么应该先进行测试而不是增加新特性；如果有某一个特性的实现不能追溯到具体的需求，则需要对其重要性进行判断并且加以限制。这有利于保证系统的演化符合教学目的。
+
+\section{本章小结}
+本文在本章总结角色、功能以及非功能性需求并提出相应的评估标准，在之后的总体设计及实现过程中起到指导作用。
+
+\chapter{系统总体设计}
+
+\section{系统设计目标}
+系统总体设计不仅要解决“如何实现”，而且要回答“为什么要这样设计”。根据需求分析以及教学实际情况，我们将设计目标定为功能完整、安全可靠及易于维护发展这三点上。
+
+\subsection{功能完整性目标}
+系统需要包括教学闭环中重要部分：课程、资料、作业、智能反馈、教师批阅及学生学习情况返回等。缺少任何一个环节，该系统就会变成一堆零散的小工具而不能够产生连贯的教学效果。
+
+为了保证完整，在此以“核心链路优先”。即先保证课程管理和聊天以及作业主流程可用，之后再增加统计展示及交互增强等。这正是第3章中所提到高优先级模块划分，也对应第 5 章关键实现中的链路编排。
+
+\subsection{系统安全性目标}
+教学系统的安全目标除了账户安全外还有课程边界安全及评价责任安全。前者要求访问控制和资源的所有权相匹配，后者要求AI建议不能超出教师的裁量范围。因此，在认证的基础上添加课程成员关系验证、会话归属验证以及动作级别的权限控制。
+
+从技术上讲，安全目标转化为"先身份、后资源、再动作"检查流程以及采用一致错误描述减少前端误判。其优点在于能够及时识别出究竟是由于认证问题、权限问题还是业务逻辑问题导致的问题以便于后续进行追踪和处理。
+
+\subsection{可维护与可演进目标}
+由于模型、提示词以及检索参数会不断发生变化，因此系统需要有良好的低耦合可进化性，在此我们采取模块分层以及职责归一化的方式：页面交互、接口编排、业务逻辑、数据持久化以及AI调用各自独立，避免互相之间存在强依赖关系。
+
+从演进的角度来看，系统更倾向于做局部替换而不是全部重写，在模型更换上主要是针对单一AI层进行替换，在参数调整上主要是对RAG检索部分进行优化，在权限方面主要是增加鉴权以及编排等。这样可以为后续个性化推荐、多模态知识处理等提供良好的基础。
+
+\section{总体架构设计}
+系统采用“表示层—接口层—业务层—数据层—AI层”五层架构，如图\ref{fig:overallArch}所示。
+
+五层架构的核心目标是把“教学业务复杂性”和“模型调用复杂性”分开。表示层负责交互和状态展示；接口层负责请求校验、会话识别、协议封装；业务层负责权限、课程语境、会话生命周期和审核编排；数据层负责持久化与关系一致性；AI 层负责模型调用、提示词组织、检索注入和异常回退。这样分层之后，系统对于模型变化、接口增加或者规则变动只需要改动部分而不必全部重写。
+
+系统调用路径为“前端请求 - 接口鉴权 - 业务编排 - 数据读取/AI调用 - 结果回写 - 前端呈现”。任何一个环节出现问题，接口层统一返回错误信息，业务层进行回滚或者降级操作，防止出现“已经提交但是没有写入到数据库”的情况。由于教学数据是有追溯性的要求，所以这样的可控失败的设计是非常必要的。
+
+与仓库目录的对应关系可做粗略对齐：页面与路由组件集中在 \path{app/}；HTTP 接口入口集中在 \path{app/api/}；权限与会话侧编排主要分布在 \path{lib/chat-pipeline.ts}，认证辅助逻辑在 \path{lib/auth.ts}；持久化模型定义集中在 \path{prisma/schema.prisma}。这种分层不是为了写论文而划分，而是为了控制变更范围。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[node distance=5mm, every node/.style={draw, rounded corners, align=center, minimum width=11.2cm, minimum height=0.95cm}]
+    \node (l1) {表示层：Landing / Dashboard / Teacher / Student 页面组件};
+    \node[below=of l1] (l2) {接口层：Route Handlers + Server Actions};
+    \node[below=of l2] (l3) {业务层：课程服务、作业服务、聊天流水线、权限控制};
+    \node[below=of l3] (l4) {数据层：Prisma ORM + SQLite（课程、作业、会话、记录）};
+    \node[below=of l4] (l5) {AI层：统一模型调用 + RAG 检索 + 提示词编排 + 回退策略};
+    \draw[->] (l1) -- (l2);
+    \draw[->] (l2) -- (l3);
+    \draw[->] (l3) -- (l4);
+    \draw[->] (l4) -- (l5);
+  \end{tikzpicture}
+  \caption{系统总体架构}
+  \label{fig:overallArch}
+\end{figure}
+
+\section{数据模型设计}
+核心实体及关系如表\ref{tab:dataModel}。课程为中心实体，聊天会话与作业提交均可追溯到课程与用户。
+
+数据模型采取“以课程为中心+事件可回溯”的方式。课程（LearningCourse）为主语义锚点。成员（CourseMember）、资料（LearningMaterial）、作业（Assignment）、会话等都是与课程相关的事件或对象。（ChatSession）以及记录（StudyRecord）都是与课程相关联的。这有利于保持教学连贯性同时也能够防止跨模块信息孤岛现象发生。
+
+一致性约束方面，主要考虑三个方面的内容。首先是用户与课程成员之间是一一对应的关系，防止重复加入导致的权限问题；其次是知识点与资料之间的联系可以被跟踪，以便查询能够查找到对应的资料；最后是会话、消息以及记录的引用必须是完整的，在会话被删除或者状态发生变化之后不会出现孤立的数据。
+
+\begin{table}[H]
+  \centering
+  \caption{核心数据模型说明}
+  \label{tab:dataModel}
+  \begin{tabular}{p{3.0cm}p{3.0cm}p{6.5cm}}
+    \toprule
+    实体 & 关键字段 & 说明 \\
+    \midrule
+    User & id, email, role & 用户基础信息与角色属性 \\
+    LearningCourse & ownerId, title, courseCode & 课程主体与加入凭据 \\
+    CourseMember & courseId, userId, role & 课程成员关系，支持权限校验 \\
+    Learning\newline Material & courseId, kind, content/url & 课程资料与知识来源 \\
+    Assignment & courseId, creatorId, published & 作业发布与截止信息 \\
+    StudyRecord & recordType, meta, reviewStatus & 学习行为与审核痕迹 \\
+    ChatSession\newline ChatMessage & model, role, content & 会话与消息持久化 \\
+    CourseKnowledge\newline Chunk & chunkIndex, content & 课程知识分块与向量检索映射 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{接口设计}
+系统核心接口遵循统一响应语义，主要接口见表\ref{tab:apiDesign}。
+
+接口设计以“协议简单、语义明确、错误可判别”为标准。非流式接口是一次性返回所有结果，流式接口是逐步返回较长内容同时提升用户体验。两个接口有共同的基础业务安排，在输出协议上不同，减少冗余代码量。会话处理采用GET、POST、PATCH、DELETE四种操作涵盖了整个生命周期中的读取、写入、修改以及删除等。
+
+为了增强系统的健壯性，在接口层前置输入校验、会话归属校验、课程访问校验以及异常处理，失败时返回有意义的错误信息，如无权限则返回认证失败，越权访问返回资源错误，模型调用失败执行回滚或者错误提示等，这样能够区别业务层面的问题与系统层面的问题，降低前端误判的可能性并且方便排查问题  。
+
+\begin{table}[H]
+  \centering
+  \caption{主要 API 接口设计}
+  \label{tab:apiDesign}
+  \begin{tabular}{p{4.0cm}p{1.5cm}p{4.5cm}p{2.8cm}}
+    \toprule
+    路径 & 方法 & 功能 & 鉴权 \\
+    \midrule
+    /api/auth/session & GET & 查询当前会话登录状态 & Cookie/JWT \\
+    /api/chat & POST & 非流式课程聊天 & 必需 \\
+    /api/chat/stream & POST & SSE 流式课程聊天 & 必需 \\
+    /api/dashboard/chat & GET & 获取会话列表与当前消息 & 必需 \\
+    /api/dashboard/chat & POST & 创建会话并设置模型 & 必需 \\
+    /api/dashboard/chat & PATCH & 更新会话标题/模型 & 必需 \\
+    /api/dashboard/chat & DELETE & 删除会话与关联消息 & 必需 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{权限与安全设计}
+权限检查遵循“先身份，后资源，最后动作”的顺序：
+\begin{enumerate}[label=(\arabic*)]
+  \item 身份校验：确认用户已登录并令牌有效；
+  \item 资源校验：确认用户对课程拥有所有者或成员权限；
+  \item 动作校验：根据角色限制创建、审核、删除等高风险操作。
+\end{enumerate}
+
+系统可用性定义为
+\begin{equation}
+A=\frac{T_{\text{normal}}+T_{\text{degraded}}}{T_{\text{total}}},
+\label{eq:availability}
+\end{equation}
+其中 $T_{\text{degraded}}$ 是在降级模式下还可以实现主要功能的时间。
+
+这个权限模型可以看作是一个过程，在这个过程中，只有当用户身份合法、资源归属合法并且操作符合策略的规定时，请求才会被放到业务中去处理。而三段校验的好处就是问题可以逐层解决，“你是谁”对应身份层，“你能看到什么”对应资源层，“你能做什么”对应动作层，在课程环境中可能会遇到的问题有跨课程会话访问以及越权审核，前者的阻止手段是通过会话归属与课程成员的校验来实现，后者的阻止手段是通过角色与课程所有者的关系来进行校验。
+
+可用性公式（见式\eqref{eq:availability}）是衡量正常模式以及降级模式下整体可用性的指标。这里引入Tdegraded是因为在教学中更加重视“不中断”，而非“最优化”，当外部模型不可用时，系统仍然需要完成主要工作。
+
+\section{接口数据流与状态机设计}
+为使整体设计更具有可行性，本节增加接口数据流以及状态机方面的描述。数据流分为“请求入站、策略编排、执行回写、结果返回”四个步骤，在入站时进行参数检查及认证；在编排中选择课程上下文、模型参数以及回退策略；在执行中调用检索或者模型并处理可能出现的问题；在回写中更新会话、审核或者记录的状态；最后的结果中统一打包成相应的内容。
+
+从状态机的角度来看，会话以及审核是两个主要的对象，在会话的状态方面可以简化为：已创建、进行中、已更新、已删除；而在审核的状态上可以简化为：待处理、已建议、已确认、已驳回。而状态机的设计是为了避免隐式的分支，使得每次的状态变更都有一个明确的原因以及落库的动作，从而降低存在的功能但是状态不一致的风险。
+
+另外，在接口设计上，“幂等优先”。对于可以被多次触发操作（例如前端重试、网络闪断重发等），系统利用键约束以及状态进行防止重复写入。这在聊天和审核两部分最易发生“重复请求+部分成功”情况，借助状态机和幂等处理可以很好地保证系统的健壮性。
+
+\section{数据治理与配置管理设计}
+系统长期稳定运行不仅需要良好代码实现还需要有良好数据以及配置管理。而在整体设计中我们将配置分为三个部分：运行环境配置、策略参数配置、教学规则配置。运行环境配置是保证服务能够正常运行；策略参数配置是决定搜索以及模型行为；教学规则配置是决定课程以及审核范围等。这三种配置需分开管理以防止经常变动环境配置导致问题发生。
+
+数据治理上，我们遵循“主数据稳定、过程数据可追溯、缓存数据可重建”的理念。主数据如课程、成员关系等，保证其一致性以及唯一性；过程数据如会话及审核日志，保证其可追溯；缓存数据用于提高系统性能，但不必持久化存储。这样可以方便我们在系统发生故障后进行故障恢复的工作：首先恢复主数据，然后是过程数据再之后是缓存数据。
+
+从答辩角度来看，配置治理、数据治理的意义是解决“系统如何长期可维护”的问题，在毕业设计时可以先搭建最简化的治理框架，在后续发展过程中逐步加入自动巡检、配置版本化以及审计看板等，这一步骤也是基于实际情况进行合理规划的结果，有利于保证系统的发展不至于失控。
+
+\section{本章小结}
+本章介绍了系统的整体框架、数据模型、接口以及安全性等设计内容，划分不同层次之间的责任范围，便于后续工作开展奠定良好的基础  。
+
+\chapter{关键模块设计与实现}
+
+\section{统一 AI 调用链路实现}
+统一 AI 调用层提供两个能力：非流式生成与流式生成，业务模块无需对接外部模型服务。聊天主流程可形式化为：
+\begin{equation}
+\mathcal{R}=f\left(U,S,C,H\right),
+\label{eq:replyFunction}
+\end{equation}
+其中 $U$ 为用户身份，$S$ 为会话信息，$C$ 为课程上下文，$H$ 为历史消息窗口。函数 $f$ 输出助手回复 $\mathcal{R}$ 并存入会话存储。
+
+统一AI调用链路的核心思想是“参数集中、调用透明”，业务层只需要关注标准输入输出，不出手干预模型内部结构。模型名、温度、重试策略以及是否开启流式等都由AI层负责管理，以防止不同部分各自设置参数造成风格偏移，在调试过程中尝试过高创造性的参数设置，导致课程术语重复率较低、答案过长或过短，增加了人工审核的工作量，后来降低温度并严格限定课程内容，先让模型回答尽可能准确后再通过提示词使答案更丰富。
+
+数据写入使用事务方式。过程为“记录用户输入 -> 生成回复 -> 根据结果提交或者回滚”，而常见失败情形是“用户消息已经写入，但是模型阶段无响应或者超时”，如果不回滚，在对话里面就会有“仅有问题而无答案”的脏数据存在，影响后续的上下文拼接。现阶段实现是失败后撤销这一步临时写入并给出合理解释。流式路径还会记录第一个包以及结束的时间点，这个时间和第6章所述延迟计算方式相同。
+
+HTTP 入口处，非流式聊天对应 \path{app/api/chat/route.ts}，SSE 流式聊天在 \path{app/api/chat/stream/route.ts}；模型调用封装集中在 \path{lib/ai.ts}，会话归属与课程访问校验等编排逻辑主要分布在 \path{lib/chat-pipeline.ts}。
+
+\section{课程上下文 RAG 编排}
+RAG 编排过程如图\ref{fig:ragFlow}，先检索再注入，检索不可用时退回到整个文档的内容。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[node distance=5mm and 7mm, every node/.style={draw, rounded corners, align=center, minimum height=0.9cm}]
+    \node (q) {用户问题};
+    \node[right=of q] (e) {问题向量化};
+    \node[right=of e] (v) {LanceDB 检索 Top-K};
+    \node[right=of v] (f) {阈值过滤与截断};
+    \node[right=of f] (p) {Prompt 注入};
+    \node[below=of v] (d) {降级：全文资料上下文};
+    \draw[->] (q) -- (e);
+    \draw[->] (e) -- (v);
+    \draw[->] (v) -- (f);
+    \draw[->] (f) -- (p);
+    \draw[->] (v) -- (d);
+    \draw[->] (d) -- (p);
+  \end{tikzpicture}
+  \caption{课程上下文 RAG 编排流程}
+  \label{fig:ragFlow}
+\end{figure}
+
+在提示词构造阶段，系统引入上下文预算约束：
+\begin{equation}
+\sum_{i=1}^{n}\lvert c_i \rvert \le C_{\max},
+\label{eq:contextBudget}
+\end{equation}
+其中 $c_i$ 为第 $i$ 个注入片段，$C_{\max}$ 为最大字符预算，防止上下文过多造成时延抖动。
+
+RAG编排实现可以总结为五个步骤：问题预处理、向量化、候选检索、片段筛选、提示词注入。首先进行长度裁剪以及语义清洗，防止不合逻辑的问题造成向量化代价过高；然后做课程范围内的Top-K检索；接着根据相似度大小进行降序排列；最后以字符数为单位逐个插入片段，构成课程约束提示。其中最重要的一个点是“课程内检索”，即所有的候选片段都必须有相同的课程ID，防止不同课程的知识混淆。而Top-K数量、相似度阈值以及字符数等参数都在lib/chat-rag-retrieval.ts中定义，在lib/chat-pipeline.ts中的会话编排处进行提示词注入拼接。调参过程中也发现两种情况，即阈值较低则召回片段增多但是噪声增加；而阈值较高则与课程相关的一些边缘化知识被忽略。所以并不是一个最优阈值，而是在“可解释性和时延之间的权衡”  。
+
+在参数上，RAG主要受到Top-K、最小相似度阈值、最大注入片段数量、最大注入字符数的影响。Top-K表示召回上限，阈值表示对于噪声的过滤程度，片段数以及字符数对时延和上下文密度都有影响，在保证服务可用性的前提下，系统设有两层退化策略：如果向量表不存在或者向量化失败以及检索未命中，则切换到全量文档注入；如果全量文档仍然不足，则模型会给出“资料未覆盖该问题”的提示。这个退化路径主要是为了解决“检索端失败不应该影响主线程”的工程需求，并不是希望每个问题都能得到高置信的回答。
+
+\section{作业初评与教师审核闭环}
+作业提交流程如图\ref{fig:reviewFlow}。在学生提交之后进行AI初评，得到 strengths、issues、suggestions 和 scoreSuggestion；教师审核后写回记录，形成可追踪闭环。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[node distance=6mm and 6mm, every node/.style={draw, rounded corners, align=center, minimum width=2.6cm, minimum height=0.9cm}]
+    \node (s1) {学生提交作业};
+    \node[right=of s1] (s2) {AI 初评生成};
+    \node[right=of s2] (s3) {写入 StudyRecord};
+    \node[right=of s3] (s4) {教师审核确认/驳回};
+    \draw[->] (s1) -- (s2);
+    \draw[->] (s2) -- (s3);
+    \draw[->] (s3) -- (s4);
+  \end{tikzpicture}
+  \caption{作业初评与教师审核闭环}
+  \label{fig:reviewFlow}
+\end{figure}
+
+为平衡机器评估与人工复核，引入最终评分融合模型：
+\begin{equation}
+S_{\text{final}}=\beta \cdot S_{\text{ai}}+(1-\beta)\cdot S_{\text{teacher}},
+\label{eq:scoreFusion}
+\end{equation}
+其中 $S_{\text{ai}}$ 表示 AI 初评建议分，$S_{\text{teacher}}$ 表示教师审核分，$\beta$ 为 AI 建议权重。在线使用中建议 $\beta \le 0.4$ 以确保老师主导。
+
+这个闭环并不是为了“让AI取代老师”，而是为了“利用AI进行初步筛选，节约老师时间”。初筛使用结构化形式，由系统输出优缺点以及建议得分，防止自由文本无法存储及对比。而在调试过程中遇到的问题是：当信息不充分时，模型依然给出较高分数的意见，容易造成与老师的打分差距较大。因此，在评审提示中加入“信息不充分时尽量少提建议”的规则，并将最终决定权放在老师一方。结果写入学习记录元数据之后，老师可以在审核页面确认、修改或者驳回。最终得分以及评语以老师为准，责任明确。
+
+为了减少误判的可能性，在此采取三个方法：设定了AI权重上限，防止自动评分起决定性作用；保障人工批阅的比例；对于有疑问的地方进行二次审核，保证公平公正。保留审核痕迹（时间、审核人、意见）便于追溯；在信息不足的情况下引导模型给出保守建议而不是强行打分。这也在一定程度上做到兼顾效率与公平。
+
+\section{聊天时序与会话管理实现}
+课程聊天时序如图\ref{fig:chatSequence}。会话管理接口支持 GET/POST/PATCH/DELETE，实现会话创建、模型切换、重命名和删除。
+
+会话管理采用显式生命周期：创建（POST）- 使用（GET/聊天）- 更新（PATCH）- 删除（DELETE）。创建时绑定课程 ID 和模型配置，以便后续问答具有课程界限；更新时可以更改标题以及模型但是会话所有者不会发生变化；删除时级联删除相关消息从而防止出现孤立条目。这使得会话状态转移更加可靠并且便于审核及回滚等操作。
+
+时序方面更关注幂等性和并发一致性而非把流程图画得美观。重复提交情况下，接口利用会话以及消息主键防止重复写入，在此过程中出现的问题是：前端网络抖动导致重试会导致相同的消息被再次提交，如果没有相应的限制条件，旧的消息会被重新写入并且影响到接下去的模型输入；流式断开后，在finally部分统一关闭流并返回结束标志使前端的状态机收敛；产生错误之后回滚该次用户的写入以保证消息的顺序以及可见回复的一致性，防止对接下来的推理造成干扰。
+
+\usetikzlibrary{arrows.meta, positioning}
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=2.5cm,
+    line/.style={-Stealth, thick},
+    lifeline/.style={dashed, gray},
+    every node/.style={font=\small}
+  ]
+    % 定义角色
+    \node (u) {用户前端};
+    \node (a) [right=of u] {聊天接口};
+    \node (p) [right=of a] {聊天流水线};
+    \node (db) [right=of p] {数据库/检索层};
+
+    % 画生命线
+    \foreach \x in {u,a,p,db} {
+      \draw[lifeline] (\x) -- ++(0,-5);
+    }
+
+    % 画交互消息（使用 yshift 统一偏移量）
+    \draw[line] ([yshift=-0.8cm]u.center) -- node[above]{1. 发送消息} ([yshift=-0.8cm]a.center);
+    \draw[line] ([yshift=-1.6cm]a.center) -- node[above]{2. 鉴权与校验} ([yshift=-1.6cm]p.center);
+    \draw[line] ([yshift=-2.4cm]p.center) -- node[above]{3. 读取上下文} ([yshift=-2.4cm]db.center);
+    \draw[line] ([yshift=-3.2cm]db.center) -- node[above]{4. 返回资料} ([yshift=-3.2cm]p.center);
+    \draw[line] ([yshift=-4.0cm]p.center) -- node[above]{5. 生成并落库} ([yshift=-4.0cm]a.center);
+    \draw[line] ([yshift=-4.8cm]a.center) -- node[above]{6. 返回响应} ([yshift=-4.8cm]u.center);
+
+  \end{tikzpicture}
+  \caption{课程聊天核心时序}
+  \label{fig:chatSequence}
+\end{figure}
+
+\section{工程质量与持续集成实现}
+CI 流水线如图\ref{fig:ciFlow}，包括 lint、test、build 与 e2e，保证主干的质量。
+
+CI门禁使用分层收敛方式：首先是静态质量，其次是逻辑正确性，然后是可构建性和最后的关键用户路径进行验证。如图5.4所示，lint、test、build、e2e分别负责不同的风险拦截工作，这种方式的优点在于能够更快地发现错误的位置，不必每次都要从头到尾整个流程排查。
+
+从工程成本角度，持续集成的价值不仅仅是“发现问题”，还有“限制变更影响范围”。如果业务逻辑和模型调用之间联系紧密，在没有分层的情况下，回归问题一般都会延迟到之后才会出现，而且要付出更高的代价。流水线定义在 \path{.github/workflows/ci.yml}，和 \path{package.json} 里面的脚本命令一样，以防止“本地可以运行但远程无法运行”。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+    node distance=8mm and 12mm, % 增加间距
+    every node/.style={draw, rounded corners, align=center, minimum width=2.5cm, minimum height=0.9cm, font=\small}
+  ]
+    % 第一行
+    \node (n1) {Checkout};
+    \node[right=of n1] (n2) {Install};
+    \node[right=of n2] (n3) {Prisma\\Generate/Push};
+    \node[right=of n3] (n4) {Lint};
+    
+    % 第二行 (放在 n1 下方)
+    \node[below=of n1] (n5) {Vitest};
+    \node[right=of n5] (n6) {Build};
+    \node[right=of n6] (n7) {Playwright};
+
+    % 连线
+    \draw[->] (n1) -- (n2);
+    \draw[->] (n2) -- (n3);
+    \draw[->] (n3) -- (n4);
+    % 从第一行末尾折回到第二行开头
+    \draw[->] (n4.south) -- ++(0,-0.4) -| (n5.north); 
+    \draw[->] (n5) -- (n6);
+    \draw[->] (n6) -- (n7);
+  \end{tikzpicture}
+  \caption{持续集成流程}
+  \label{fig:ciFlow}
+\end{figure}
+
+\section{关键模块协同与事务边界}
+在课程教学场景下，系统并不是一个个独立小模块工作，而是一个整体，“认证、课程、作业、聊天、记录”，多个模块共同协作进行。如果缺少明确事务分界点，则会出现一系列问题：比如前端显示提交成功，但是后端只保存了一部分数据；或者聊天信息已经存入数据库，但是模型回答出错造成对话内容混乱等。为了避免这些问题发生，本文把主要流程分为“可回滚事务段”以及“可重试非事务段”。
+
+可回滚事务段包括但不限于：会话消息写入、作业审核状态写回、学习记录落库等强一致节点，在这些节点上要保证“要么全部成功，要么全部回滚”；可重试非事务段包括但不限于：外部模型调用、流式传输、缓存同步等节点，这类节点可以有短暂失败，但是需要能够失败后返回一个确定的状态并且可以让上级流程进行接管，这样可以避免把外部不确定因素硬性地拉入到数据库事务内，平衡了数据的一致性和系统的可用性。
+
+从实现上来看，协同需要一个统一的请求上下文。请求进入接口层之后，先进行鉴权以及授权等操作，然后进入到业务编排层；编排层根据不同的场景组织课程上下文、历史消息以及策略参数；最后是AI层或者数据层进行相应的操作。每一层只暴露必要的输入输出而不允许跨层读取内部的状态信息。这样就实现了“故障能定位、过程可追溯、组件可替换”的目的，也为以后增加新的推荐或者教学分析等功能打下基础。
+
+\section{异常场景与恢复策略}
+教学系统异常处理的目的不是“零失败”，而是“失败可控并且不影响主线程运行”。根据此理念，我们把异常分为三种情况：可降级异常、可重试异常以及需要人工干预异常。
+
+可降级异常主要包括外部模型调用失败、向量检索暂时不可用等情况，在这种情况下系统首先触发demo回退或者全文资料注入以保证用户可以完成主要功能；可重试异常是指网络波动、流式中断、短时间内超时等情况，对于这种情况系统利用幂等键、状态标识以及重试窗口防止重复提交；需要人工干预异常包括权限问题、数据损坏风险、重要参数丢失等问题，在这些情况发生时系统不会做任何自动恢复工作，而是给出可理解错误提示让管理员解决。
+
+恢复策略设计注重“先保数据后恢复服务”。如在聊天链路上如果生成失败，则先撤销本次用户临时写入操作，再返回相应错误信息，防止脏数据流入到下一个对话中；而在作业审核链路上如果写回失败，则维持原有审核状态不变，以免产生“页面上显示已经审核但是数据库里面并没有写入该记录”的情况发生。这样可以保证即使在出现问题的时候整个系统仍然是一致的状态，有利于后续问题定位。
+
+\section{可观测性与审计追踪设计}
+仅有功能实现是不够的，还需要可观测性来解决三个问题：系统慢的原因是什么、出错的原因是什么以及责任边界在哪里。为了解决这三方面的问题，在工程上我们使用日志、指标和审计信息三种类型的追踪数据。
+
+日志侧重点在于“链路可复盘”，即记录请求标识、角色信息、模块入口、重要分支以及异常总结等；指标侧重点在于“性能可量化”，即记录非流式时延、流式首包时延、失败率以及回退发生率等；审计侧重点在于“责任可追溯”，即记录谁在什么时候对哪个课程、会话或者审核记录进行什么操作。这三者结合起来可以非常方便地在答辩或者系统维护过程中找到问题所在。
+
+需要明确的是可观测性并不等于无限制收集所有内容。本文只关注与教学过程有关的内容对教学过程造成影响。不采集不必要的隐私内容，避免把日志系统演变成一个新的隐患。对于模型输出部分，系统仅保存结构化的摘要以及状态标签，而不是完整的原始长文内容。这样既可以保证排错的需求又符合对教学数据进行最小化处理的要求。
+
+\section{本章小结}
+本章针对统一 AI 调用、RAG 编排、作业审核闭环以及会话管理，介绍相关功能点的设计思路及其实现方式，在此基础上阐述了系统的工程化落地情况。
+
+\chapter{系统测试与结果分析}
+
+\section{测试环境与方案}
+测试环境配置见表\ref{tab:testEnv}。
+
+\begin{table}[H]
+  \centering
+  \caption{测试环境配置}
+  \label{tab:testEnv}
+  \begin{tabular}{p{3.2cm}p{6.0cm}p{3.8cm}}
+    \toprule
+    类别 & 配置项 & 说明 \\
+    \midrule
+    操作系统 & Windows 11 / Ubuntu CI Runner & 本地开发与云端验证 \\
+    运行环境 & Node.js 20 & 与 CI 环境一致 \\
+    前后端框架 & Next.js 16 + React 19 & 一体化开发 \\
+    数据库 & SQLite + Prisma 7 & 轻量持久化 \\
+    单元测试 & Vitest & 工具函数与编排逻辑 \\
+    端到端测试 & Playwright Chromium & 首页与主链路冒烟测试 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+测试方案是“先保证功能正确，再并行考虑性能以及稳定”。测试对象包括接口层、编排层、用户流程层。接口层主要检查参数校验、鉴权以及错误信息等；编排层主要检查上下文拼接、检索注入、回退和落库等操作；用户流程层主要是从登录到最后一个环节是否可以正常运行。分层有利于更快地找到问题所在，不至于仅仅用e2e就浪费大量时间。
+
+样本组织采用“固定场景+可重复输入”，固定场景保证轮次可比，可重复输入保证波动可解释；性能指标采用多次采样取均值及P95，减少由于网络抖动带来的干扰；功能指标采用是否成功以及出错信息进行判断，以便后续复现问题。采样期间存在两种类型的噪声样本：一种是输入为空或者会话非法，第二种是因为上下文过大造成一轮耗时很长。第一种类型的样本在计算之前被过滤掉，第二种类型的样本保留原样作为尾部时延的原因。
+
+\section{测试用例组织与判定标准}
+参考管理信息系统测试一节内容，对测试组织进行说明。测试不是“能否一次演示成功”，而是“关键过程在规则限制下能否正常运行”。因此，测试用例有四个部分：认证权限部分、业务规则部分、服务连续性部分、数据一致性部分。
+
+\begin{table}[H]
+  \centering
+  \caption{测试用例分层与判定标准}
+  \label{tab:testCriteria}
+  \begin{tabular}{p{2.8cm}p{4.4cm}p{5.4cm}}
+    \toprule
+    用例类别 & 关注点 & 通过判定标准 \\
+    \midrule
+    认证权限类 & 登录态、角色权限、资源归属 & 未登录拦截、越权拒绝、合法请求放行三者同时成立 \\
+    业务规则类 & 入课、聊天、作业、审核规则 & 规则命中时准确拦截，规则满足时流程可持续推进 \\
+    服务连续性类 & 流式响应、外部模型异常回退 & 异常场景可降级，核心流程不中断 \\
+    数据一致性类 & 会话写入、审核状态、选课记录 & 操作后数据库状态与接口返回语义一致，可追溯 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+在执行策略方面，先跑低成本高覆盖面静态以及单元门禁，之后运行端到端场景，最后进行指标采样。这样做的好处是可以尽早发现一些明确问题，不至于让一些基本问题带到后续性能测试中去。“可解释失败”，即失败不仅要被捕获，而且要返回符合业务语义错误信息。
+
+\section{实验数据采集方法}
+为保证第6章结论可追溯，实验分为两类：工程质量门禁与模型能力评测。
+\begin{enumerate}[label=(\arabic*)]
+  \item \textbf{工程质量门禁：}执行 \texttt{npm run lint}、\texttt{npm test}、\texttt{npm run build}、\texttt{npx playwright test}，记录静态检查、单元测试、构建与端到端冒烟结果；
+  \item \textbf{模型能力评测：}执行 \texttt{npx tsx scripts/collect-thesis-metrics.ts}，获取非流式时延、流式首包时延与 RAG 消融指标。原生结构化数据存储在文件夹 \texttt{\nolinkurl{docs/thesis-metrics.json}} 中，摘要日志保存在文件夹 \texttt{\nolinkurl{docs/thesis-experiment-log.md}}。
+\end{enumerate}
+
+其中，时延单位为毫秒，汇报均值以及P95；RAG消融实验使用关键词标注方式得到Precision、Recall和F1。
+
+为了提高可复现性，在此基础上增加三个要求。一是采样命令、模型配置、数据输出路径固定，以便在不同时间能够重现实验；二是重要指标同时保存为JSON原始文件以及Markdown摘要形式，方便机器检查和人工复核；三是统计时排除空消息和无效对话，防止影响数据集总体情况，“失败样本类型说明”被保留而非仅仅只是合格样本，因为评估以及答辩都必须看到这个范围，这样才能保证指标可衡量、结果可复核、责任可追究。
+
+模型能力评测把样本分为课程知识匹配、流程理解、策略建议三类，以减少题型造成的偏差：仅考察事实型问题过高估计了检索能力，而仅考察建议性问题则大大低估了课程约束的作用。混合类型的题目更加贴近真实的教学问答。\texttt{\nolinkurl{scripts/collect-thesis-metrics.ts}} 直接调用项目内既有 AI 与编排路径生成样本结果，而不是手工粘贴对话记录。
+
+测试策略分为四层：静态检查、单元测试、构建测试、端到端测试。核心场景与通过情况见表\ref{tab:testCases}。
+
+\begin{table}[H]
+  \centering
+  \caption{核心测试场景与结果}
+  \label{tab:testCases}
+  \begin{tabular}{p{0.9cm}p{5.3cm}p{2.0cm}p{2.0cm}p{2.2cm}}
+    \toprule
+    编号 & 场景 & 类型 & 期望结果 & 执行结果 \\
+    \midrule
+    T1 & 未登录访问工作台重定向 & E2E & 跳转登录页 & 通过 \\
+    T2 & 学生凭课程码加入课程 & 集成 & 成功加入并可见课程 & 通过 \\
+    T3 & 课程上下文聊天权限校验 & 接口 & 非成员拒绝访问 & 通过 \\
+    T4 & 聊天流式接口返回 delta & 接口 & 收到分片并最终 done & 通过 \\
+    T5 & 未配置密钥 demo 回退 & 集成 & 返回演示文本且不报错 & 通过 \\
+    T6 & 作业提交触发初评 & 集成 & 写入 aiReview 元信息 & 通过 \\
+    T7 & 教师审核写回评论与状态 & 集成 & reviewStatus 正确落库 & 通过 \\
+    T8 & 会话重命名与删除 & 接口 & 会话状态更新/移除 & 通过 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{结果评估}
+基于测试记录与样本评估，核心指标见表\ref{tab:metricsResult}。
+
+\begin{table}[H]
+  \centering
+  \caption{系统关键指标结果}
+  \label{tab:metricsResult}
+  \begin{tabular}{p{3.3cm}p{2.4cm}p{2.4cm}p{3.0cm}}
+    \toprule
+    指标 & 目标值 & 实测值 & 结论 \\
+    \midrule
+    接口鉴权覆盖率 & 100\% & 100\% & 达标 \\
+    核心流程可用率 $A$ & $\ge 99\%$ & 100\% & 达标 \\
+    非流式平均时延 & $< 8.0s$ & 6.72s & 达标 \\
+    流式首包时延 & $< 3.0s$ & 2.73s & 达标 \\
+    RAG 增强问答 F1（关键词评测） & $\ge 0.75$ & 0.80 & 达标 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+先来看可达性和安全性问题。如表\ref{tab:metricsResult} 所示，接口鉴权覆盖率是 100\%，核心流程可用率也是 100\%。而在本次采样期间，系统可以正常阻止非法访问并且保证主线程运行下去，这也是前面所说的“先保可达”。另外需要注意的是这要基于有回退链路存在：如果没有任何外部密钥，则系统使用demo路径让流程继续进行而不是将请求认为失败。
+
+再来看时延指标。非流式平均时延6.72s、流式首包时延2.73s，都在目标范围内。而在采样日志中也有少量“首包明显慢于均值”，主要是因为上下文较长或者外部服务瞬间抖动导致的。需要说明的是，时延受到模型服务状况、网络情况以及上下文长度的影响，在此仅得出是在本次实验下满足要求的结果，而不能推广到一般情况。
+
+从质量上看，RAG增强问答F1为0.80，超过目标值0.75，在日志中也有体现，即加入课程上下文之后，答案更加符合课程语言风格，重要信息点提及更全面。而对比失败样本可以看出，在没有RAG的情况下容易发生“回答看似完整但是缺少课程相关关键词”的问题，这也正是后面保留检索注入的原因。
+
+\section{消融分析}
+为了检验 RAG 组件作用，对比“仅大模型生成”、“RAG 增强生成”两种方法进行比较，见表\ref{tab:ablation}。
+
+\begin{table}[H]
+  \centering
+  \caption{RAG 消融实验结果（课程问答样本）}
+  \label{tab:ablation}
+  \begin{tabular}{p{3.8cm}p{2.0cm}p{2.0cm}p{2.0cm}p{2.0cm}}
+    \toprule
+    策略 & Precision & Recall & F1 & 平均时延(s) \\
+    \midrule
+    无 RAG（纯生成） & 0.4667 & 0.5833 & 0.5185 & 20.60 \\
+    有 RAG（Top-K+阈值） & 0.6667 & 1.0000 & 0.8000 & 7.71 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+表\ref{tab:ablation} 给出消融实验结果较为明显：F1从0.5185上升到0.8000，平均时延从20.60s下降到7.71s，在该批次数据上，RAG不仅提高答案的相关性而且未增加额外的时间开销。原因是在回答范围受到课程片段限制的情况下，生成的回答更为聚焦，冗余较少。而在消融中出现最明显的问题是无RAG组：模型给出较长泛化的回答但是无法遵守课程中的术语要求。
+
+从各个维度来看，Recall从0.5833提高到1.0000，Precision从0.4667提高到0.6667。前者表示漏答主要问题改善，后者表示增加片段未明显引入噪音。两者都提升，造成F1上升的原因。但并不是说“所有类型题目都可以保证完全召回”，只是说明在本课程问答集上，检索限制大大减少遗漏情况发生。
+
+但是这个结论是有一定限制条件的。目前所用实验数据量较小，而且主要是基于课程文本信息进行，多模态材料以及跨课程复杂的问答均未涉及，所以本文所得出的结果仅适用于“课程内的问答”。
+
+\section{可视化结果}
+图\ref{fig:resultBar}展示了主要指标对比。
+
+图\ref{fig:resultBar} 显示这三个指标都得到提高，而Recall增加最多。这是因为课程问答的数据集特点决定的：学生的提问往往缺少背景信息，在检索失败的情况下模型更易忽略课程限制条件。
+
+第二个现象是 Precision 并未随着 Recall 的提高而降低，说明当前 Top-K 和阈值设置对于这个样本来说已经达到一个较好的配合关系。这张图可以作为之后调整阈值的一个基准。
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      ybar,
+      bar width=14pt,
+      width=12cm,
+      height=6.8cm,
+      ymin=0, ymax=1,
+      symbolic x coords={Precision,Recall,F1},
+      xtick=data,
+      legend style={at={(0.5,1.02)},anchor=south,legend columns=2},
+      ylabel={指标值},
+      nodes near coords
+    ]
+      \addplot coordinates {(Precision,0.4667) (Recall,0.5833) (F1,0.5185)};
+      \addplot coordinates {(Precision,0.6667) (Recall,1.0000) (F1,0.8000)};
+      \legend{无RAG,有RAG}
+    \end{axis}
+  \end{tikzpicture}
+  \caption{RAG 消融指标可视化}
+  \label{fig:resultBar}
+\end{figure}
+
+\section{有效性威胁与结果解释边界}
+虽然本章给出了可用性、时延以及RAG消融的结果，但是这些结论仍然受限于所做实验条件。为了防止过度外推，在此对可能存在的问题进行内部有效性、外部有效性和统计有效性这三方面的分析。
+
+内部有效性上，实验使用固定的脚本以及固定的样本集可以提高可复现性但是也可能会造成题目偏差的问题，比如课程中的问题如果是关于事实抽取的问题那么就容易夸大RAG的优势而如果是需要进行开放式讨论的问题那么就更依赖模型组织的能力。外部有效性上，目前实验只在一个项目、一种部署环境下完成所以并没有涉及大规模跨课程的情况因此只能认为是对于“课程内的问答及作业初步批阅”有效而不是对所有的教育AI都有效。统计有效性上，样本规模在毕业设计要求范围内是可以接受但是却远远不足以进行严格的显著性推断，因此本论文只给出工程上适用性结论而不做统计上的推广。
+
+根据以上所述范围，在此对结果进行描述为：“在现有样本及条件下满足要求”，该描述一方面保证结果可靠性的同时也给后续进一步实验留有余地。以后如进入到多个课程测试时，则需要加入更多课程大小、资料多少以及提示方式等对比性试验来不断优化参数并检验其有效性。
+
+\section{部署复现流程与运行建议}
+为了使其他人可以重现第6章中的实验结果，在此给出部署以及重现的相关建议。重现工作建议分“环境搭建、数据准备、功能检查、指标获取”四部分进行。环境搭建主要是Node.js、数据库以及相关依赖包的安装；数据准备主要是基础课程以及角色账号的创建；功能检查则是对登录、入课、发消息、提交作业等最少的功能进行检查；而指标获取就是使用已有脚本来生成结构化的日志以及汇总报告。
+
+从运行上考虑，在第一次上线时先打开 demo 回退验证的链接，然后再把主流程连到正式的服务上，减少调试中的不确定因素。对于 RAG 参数，不建议一次性的大幅度改变 Top-K 和阈值，要一步一步地调，并记录每一次的日志快照。如果用于教学，则应在上课之前把所有的配置都检查一遍，比如本学期的配置、角色权限配置、缓存的状态以及重要的路由是否正常等。
+
+采用标准重现实验方法，可以使论文中实验结果由“静态结论”变为“可重复过程”，有利于提高毕业论文质量，同时便于后续团队合作以及进一步工作开展。
+
+\section{本章小结}
+本章对系统的鲁棒性和可用性进行多层次的测试，在36次采样请求中均成功返回结果，RAG机制带来的F1增益为0.2815；同时，也统计了失败样本类型以及它们所处的位置，以说明为什么“达标”并不代表“无波动”。
+
+在现有样本量及设备条件下，该方案在“可用性、效率、质量”三方面均处于可用范围之内。得出的结果可应用于课程背景下的师生合作，但是对于更大规模课程以及更多样化需求还需进一步测试。
+
+\chapter{总结与展望}
+
+\section{研究工作总结}
+本文是关于生成式AI在教学平台上进行工程化应用所开展的工作，在此基础上设计并开发出一种能够对课程上下文进行加强的智能化学习助手。主要有以下几点贡献：
+\begin{enumerate}[label=(\arabic*)]
+  \item 搭建面向教师、学生两方面的课程学习协作平台，实现对课程以及作业批阅等全部流程覆盖；
+  \item 设计课程中心化数据模型，连接会话、作业、资料以及学习记录之间的关系；
+  \item 提出统一AI调用以及RAG编排方式，实现课程上下文可控问答；
+  \item 实现作业的AI初评及老师复评相结合的方式，在保证速度的同时也要考虑公平性；
+  \item 建立持续集成与自动化测试流程，提升系统工程可靠性。
+\end{enumerate}
+
+回到最初的问题，作者提出的答案不是空洞的口号，而是一系列可以追溯到具体改进。对于第一个问题，“回答脱离课程语境”，系统将资料检索和对话设计结合在一起；对于第二个问题，“作业批阅时间过长”，系统提供AI初评但是最后批阅仍然在老师手中；对于第三个问题，“迭代成本过高”，系统利用分层边界以及CI门禁将回归成本前置到开发期。这三个改进点都出现在第五章实现部分以及第六章实验结果中。
+
+从交付形式上来说，该系统不仅仅是一个页面功能，而是一个有可追溯的数据链条以及可复现实验口径的产品原型，在能否进一步发展成为成熟教学工具还需要经过更多的课程使用并积累一定时间的数据后才能判断。
+
+\section{创新点与贡献}
+创新点主要体现在：
+\begin{itemize}
+  \item \textbf{工程架构创新：}在单体全栈框架下实现“业务解耦的统一AI层”，减少模型提供商更换所付出代价；
+  \item \textbf{教学流程创新：}“课程上下文问答+作业初评+教师复查”可行循环；
+  \item \textbf{稳态保障创新：}增加演示回退功能，在外部AI不稳定的情况下也可以保证课堂教学进行。
+\end{itemize}
+
+贡献可以分为三个层面进行阐述。\textbf{方法贡献}是将“检索增强+人工复核”纳入同一个教学闭环中，而不是把模型当成一个外挂插件。\textbf{工程贡献}是提供一个统一调用接口、会话生命周期以及行为日志等，让AI的能力有平台级别的发展空间。\textbf{应用贡献}则是第六章所给出的权衡结果，在现有的数据集上，可用性、时延及问答的质量都可以达到基本的教学需求。
+
+另一个重要方面即是可解释性，在检索注入、回退触发以及审核写回的过程中，系统都有相应的可追溯日志。这并不是说可以完全避免误判发生，但是至少可以让人们知道“为何得到这样的一个结论”，从而减少在教育过程中对于“黑盒系统”的担忧。
+
+\section{不足与未来工作}
+尽管系统达到预期目标，仍存在改进空间：
+\begin{enumerate}[label=(\arabic*)]
+  \item 数据规模仍偏小，尚需在更大样本课程中验证泛化能力；
+  \item 目前 E2E 测试覆盖主要路径，复杂的跨角色场景覆盖率还可提高；
+  \item 多模态资料（图像、音视频）尚未纳入统一检索与推理流程。
+\end{enumerate}
+
+以上缺陷与所处的研究时期以及资源的有限性有关。样本量受到课程数量及实验时长的影响，在此仅对可行性的进行评估；测试资源主要集中在主干部分，对于各种不同的异常情况考虑尚不全面；知识表示以文本为主，对于多种类型的表示及检索的方式还处于初步探讨阶段。在实际应用过程中已经出现的问题主要有：一些较长上下文的问题中第一个包的等待时间较长、建议类的问题由于信息不足导致评分不稳定、不同课程之间的频繁跳转的情况考虑较少。因此本论文的结果只能是在一定的条件下成立的工程上的成果。
+
+未来可从以下方向推进：
+\begin{itemize}
+  \item 引入学习者画像与自适应推荐，提高个性化支持精度；
+  \item 扩展多模态 RAG 与知识图谱融合，增强复杂课程场景表现；
+  \item 建立更细粒度教学效果评估体系，量化 AI 介入收益。
+\end{itemize}
+
+从实现方式来看，未来工作可以分为三个步骤进行，“数据基础—>模型能力—>教学评价”。第一步是增加课程数量，在此基础上做好行为标注工作，提高数据分析可靠性；第二步是在此基础上加入多模态检索以及使用知识图谱约束，以应对更复杂的任务需求；第三步是设计一个较为完整的教学效果评价体系，将学生的学习成果、学生的参与程度和教师的工作量等都纳入其中。分步骤地进行有利于降低工程风险并且逐步提高教育质量。
+
+综上所述，本文主要贡献并非针对某一个单一指标进行优化，而是提供一种可行的方法论：用课程作为语义锚点收集数据，用RAG约束模型输出，由老师审阅保证评价的责任边界，用CI看守工程迭代的质量。这种方法可以在高校的教学资源以及开发时间有限的情况下有效实施并且有良好的可拓展性。
+
+\section{工程推广与应用建议}
+从工程实现上看，本论文提出的方案适宜采用“小范围试用，逐渐扩大”的方式进行推广，在第一个阶段可在一个班级内使用，主要考察教师复核工作量以及学生的满意度；第二个阶段在同一个院系的不同课程中使用，主要考察不同课程间资源隔离及分配的能力；最后在全校范围内进行推广，主要解决账号系统对接的问题、数据管理和运维监控等。
+
+推广时应注意三点。第一是流程优先的原则，在保证教学流程不受影响的基础上，再考虑回答的质量问题；第二是责任明确的原则，AI给出的意见仅起到参考作用，并非代替老师进行评判；第三是留痕可查的原则，重要的意见以及审核操作都要有相应的日志、记录，以便日后查阅。这三条可以很大程度上避免出现“技术可行但是教育不能接受”。
+
+从应用层面看，系统可以对接到课程运营上，老师可以把高频问答以及作业中普遍存在的问题作为资料更新的参考，学生可以根据自己的学习情况找出自己的不足之处，管理者也可以通过过程中的数据了解课程的支持效果等，这样一来，系统的价值就不只是简单的每一次问答，而是一种基于“以数据促进教学提升”循环往复的过程。
+
+\section{伦理合规与数据治理说明}
+教育场景下的AI系统需要兼顾功能目标以及合规性，在设计上我们采用“最小必要、目的限定、可解释反馈”。最小必要是指只收集完成教学所必需的数据；目的限定是指这些数据只能用于课程支持及学习反馈而不能另做他用；可解释反馈是指系统要能够对用户解释出得出结论的原因及其限制条件等信息\cite{ref2,ref6,ref10}。
+
+对于敏感情况，系统采取保守态度，在课程资料不足或者推理置信度不高情况下，优先给出“信息不足”的提示而不是做出高置信度的回答；在有权限或者归属问题不清楚的情况下，优先拒绝并且提示人工进行核实。这样虽然减少了部分“回答完整性”，但是极大地降低了出错的概率，更加符合教学环境中对于可靠性的需求\cite{ref6,ref10}。
+
+未来如果接入更多的模型提供者或者外部的数据源，需要增加数据分级、访问审计以及模型输出抽样的措施以防止系统扩展时超出原有的法律限制。毕业论文中的治理方案可以成为之后的产品迭代的一种最低标准\cite{ref2,ref10}。
+
+\section{阶段化演进路线与资源评估}
+为了便于以后的工作开展，我们将系统的演化过程分为三个部分以及它们各自需要关注的重点。第一个部分是“稳定化阶段”，主要是减少现有功能出现的问题和避免排版式的迭代，在这个过程中主要需要进行的工作是对测试进行补充，对日志进行丰富和完善配置管理等。第二个部分是“增强化阶段”，主要是提高教学辅助的效果，在此期间需要关注的是提示策略的改进，资料管理和多课程参数调优等工作。第三个部分是“规模化阶段”，主要是能够应用于更大的范围，在这个过程中需要考虑的是如何扩大架构，如何进行运维监控以及如何改进组织协同的过程等。
+
+从时间来看，在稳定化阶段应进行小周期高频迭代，每周一次及时修复问题；而在增强化阶段则可以采用主题冲刺的方式，每两周或者一个月完成一个功能点的测试；在规模化阶段可以采用里程碑管理的方法，每一季度进行一次基础设施建设。这样既可以满足教学进度又不会影响开发进度，在学期重要时间节点上不会出现大的变动。
+
+从人员及能力上看，至少包括三种类型的人才：业务理解人才、工程实施人才、质量保证人才。业务理解人才将教学目标转为系统规则；工程实施人才进行模块编写以及调优工作；质量保证人才负责测试、回退、上线等工作。在毕业设计时一个同学可以同时担任多个职位，但是在以后推广过程中要尽量做到职责分工明确，避免出现单点故障的情况发生。
+
+资源评估需要考虑到数据资产建设成本。系统的最大容量很大程度上受限于课程资料质量以及结构化程度，如果信息过时、凌乱或者没有版本控制，则无论多么优秀的模型策略也无法持续产出优质内容，所以后续工作不应该只是关注于模型调用的成本问题，还需要包括对数据进行清理、统一标签以及课程知识维护等。
+
+基于阶段性路径以及对资源进行估算后，该方案可以由一个“可运行原型”发展成为一个“可持续教学工具”。这既是一种技术上的指导，也是一种实践上的限制条件，有利于把本文所提出的想法变成接下来可以落实的具体行为。
+
+\section{论文工作量与成果对应关系说明}
+为回答“工作量是否充足”这一毕业设计中常见的疑问，我们对论文成果以及工程产出进行一一列举。第一类成果为系统实现产出，即可以运行程序、模块划分以及接口连接等；第二类成果为实验验证产出，即可以重现脚本、日志以及评价标准等；第三类成果为方法论产出，即在一定课程背景下所提出解决办法、回退机制以及教师审核相结合的整体方案。这三种成果都是论文工作量的一部分，而不是单纯以篇幅或者代码量来衡量。
+
+从各章之间关系来看，第一章至第三章主要是解决“问题以及需求是否合理”，第四章、第五章主要是解决“方案如何实现以及为什么这样实现”，第6章主要是对“方案是否有足够的证据支撑”，第7章主要是对“当前的价值以及未来的发展方向”。这样的安排使得每一章都具有具体的目标和任务，不会出现“章节较多但是贡献重叠”的情况。
+
+“可追溯的工作量”，即凡是涉及到最终成果的内容都应该能够追根溯源到具体实验中去。当前所处位置或者实验数据；凡是有关延伸展望内容，则需说明其受限因素以及先决条件等。根据这一标准，在文章中对于工作量表述不会进行人为夸大，而是在有据可查基础上进行阐述。这也是本文力求以工程论文形式撰写的另一个目的。
+
+从论文的质量把控上，我们还设置了“事实锁定”。就是说对于一些重要的公式编号、核心实验指标、主要接口路径以及术语等进行固定不能随意改动，所有的文字扩展都是为了使得论述更加清楚，并不是改变了事实本身。这样做既可以使得扩展之后的内容更加丰富充实，又不会出现“增加字数而事实偏离”的情况。
+
+从成果看，工作量不仅是文字量增加，更是结构上的完善，问题提出更加明确、需求对应更加完整、设计选择更加合理、测试范围更加开放、未来方向更加可行，这几点都推动文章由“功能介绍性文档”变为“工程项目型论文”。
+
+因此，本文最终形成的“实现证据+实验证据+写作证据”的三者结合形式符合学校对于毕业论文完整、规范以及可验证的要求，同时为之后进行答辩奠定了基础并且具有一定的改进空间。
+
+\backmatter
+\cleardoublepage
+\addcontentsline{toc}{chapter}{参考文献}
+\begin{thebibliography}{99}
+\bibitem{ref1} 张金青, 高雪芹, 李淑霞, 等. AI 赋能《草坪学》智慧化教学的模式构建与路径探索[J]. 草业科学, 2025.
+\bibitem{ref2} Shiddiqi M H A, Sesfa'o I F, Dini N A I, et al. Using Generative AI Effectively in Higher Education: Sustainable and Ethical Practices for Learning, Teaching, and Assessment[J]. New Horizons in Adult Education and Human Resource Development, 2026.
+\bibitem{ref3} Prasad A L, Rokade P, Gorwadkar V, et al. PrepMind AI: A RAG Based Intelligent Learning Assistant for Competitive Exam Preparation[J]. ITM Web of Conferences, 2026.
+\bibitem{ref4} 张玮, 王珊珊, 李筱璨, 等. 基于大语言模型的智能教学内容提炼与自适应学习平台设计研究[J]. 高等工程教育研究, 2026.
+\bibitem{ref5} Huang Y, Yu T, Chen Y, et al. Smart Learning with Generative AI Tools in Higher Education[J]. Applied Sciences, 2025.
+\bibitem{ref6} Maher D S, Kelly J. Learning with AI, not from AI: Ethical and pedagogical implications of ChatGPT in undergraduate education[J]. Nurse Education Today, 2025.
+\bibitem{ref7} 韩欣颖, 武志远, 沈嘉勇, 等. 基于大语言模型的多模态外语智能学习系统的设计与实现[J]. 电脑与电信, 2025.
+\bibitem{ref8} 查英华, 郭朝霞, 鞠慧光. 基于大语言模型的智能学习助手设计与实现[J]. 现代信息科技, 2025.
+\bibitem{ref9} 杨宗凯, 王俊, 吴砥, 陈旭. ChatGPT/生成式人工智能对教育的影响探析及应对策略[J]. 华东师范大学学报(教育科学版), 2023.
+\bibitem{ref10} 卢宇, 余京蕾, 陈鹏鹤, 等. 生成式人工智能的教育应用与展望——以 ChatGPT 系统为例[J]. 中国远程教育, 2023.
+\bibitem{ref11} OpenAI. GPT-4 Technical Report[EB/OL]. \url{https://arxiv.org/abs/2303.08774}, 2023-03-27/2026-05-04.
+\bibitem{ref12} Vercel. Next.js Documentation[EB/OL]. \url{https://nextjs.org/docs}, 2024-01-01/2026-05-04.
+\bibitem{ref13} Prisma. Prisma Documentation[EB/OL]. \url{https://www.prisma.io/docs}, 2024-01-01/2026-05-04.
+\bibitem{ref14} LanceDB. LanceDB Documentation[EB/OL]. \url{https://lancedb.github.io/lancedb/}, 2024-01-01/2026-05-04.
+\end{thebibliography}
+
+\cleardoublepage
+\chapter*{致谢}
+\addcontentsline{toc}{chapter}{致谢}
+在本论文完成过程中，感谢导师在选题、系统设计和论文写作各阶段给予的指导与建议；感谢实验室同学在系统测试与问题排查过程中提供的支持；感谢家人对我学习与研究工作的理解与鼓励。本文若有不足，恳请各位专家和老师批评指正。
+
+\cleardoublepage
+\chapter*{附录A 主要数据表字段说明}
+\addcontentsline{toc}{chapter}{附录A 主要数据表字段说明}
+\begin{longtable}{p{3.2cm}p{10.2cm}}
+  \toprule
+  表名 & 关键字段说明 \\
+  \midrule
+  \endhead
+  User & id, email, role, createdAt, updatedAt，用于用户身份与角色管理。 \\
+  LearningCourse & id, ownerId, courseCode, title, status，描述课程主体及其状态。 \\
+  CourseMember & courseId, userId, role，表示用户与课程的成员关系。 \\
+  Learning\newline Material & courseId, kind, content/url, position，描述课程资料及排序。 \\
+  Assignment & courseId, creatorId, question, dueAt, published，描述作业信息。 \\
+  StudyRecord & recordType, score, meta, reviewStatus，记录学习行为与审核痕迹。 \\
+  ChatSession & userId, courseId, model, status，表示课程聊天会话元信息。 \\
+  ChatMessage & sessionId, role, content, metadata，表示会话消息内容与元数据。 \\
+  CourseKnowledge\newline Chunk & courseId, materialId, chunkIndex, content，用于 RAG 检索与注入。 \\
+  \bottomrule
+\end{longtable}
+
+\cleardoublepage
+\chapter*{附录B 主要接口请求示例}
+\addcontentsline{toc}{chapter}{附录B 主要接口请求示例}
+\textbf{1) 创建会话}
+\begin{verbatim}
+POST /api/dashboard/chat
+{
+  "courseId": "course_xxx",
+  "model": "deepseek-v4-flash"
+}
+\end{verbatim}
+
+\textbf{2) 发送聊天消息}
+\begin{verbatim}
+POST /api/chat
+{
+  "sessionId": "session_xxx",
+  "message": "请基于本课程资料总结考试重点"
+}
+\end{verbatim}
+
+\textbf{3) 流式聊天}
+\begin{verbatim}
+POST /api/chat/stream
+{
+  "sessionId": "session_xxx",
+  "message": "请给出本章复习计划"
+}
+\end{verbatim}
+
+\end{document}
+
